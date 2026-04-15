@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "IPhilSafe Admin",
-  description: "Real-time hardware monitoring & MOSIP authentication.",
+  title: "IPhilSafe",
+  description: "Capstone Project by Team 10",
 };
 
 export default function RootLayout({
