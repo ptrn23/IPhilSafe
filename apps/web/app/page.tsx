@@ -64,25 +64,36 @@ export default function Dashboard() {
     // TODO: await fetch('/api/hardware-event', { method: 'POST', body: JSON.stringify({ action, newLockerState }) });
   };
 
+  const generateRandomUIN = () => {
+    return `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
+  };
+
+  const generateRandomWeight = () => {
+    return +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
+  };
+
   const simulateScan = () => {
     if (locker.state === 'IDLE') {
-      pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: ["1234-5678"] }, "Primary user authenticated via MOSIP.");
+      const newUIN = generateRandomUIN();
+      pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: [newUIN] }, `Primary user (${newUIN}) authenticated.`);
     } else if (locker.state === 'OCCUPIED') {
-      pushHardwareEvent("Access Scan", { currentWeight: 1.20 }, "Authorized user scanned ID. Door unlocked for temporary access.");
+      const temporaryWeight = +(locker.currentWeight * 0.4).toFixed(2); 
+      pushHardwareEvent("Access Scan", { currentWeight: temporaryWeight }, "Authorized user scanned ID. Door unlocked for temporary access.");
     }
   };
 
   const simulateMultiScan = () => {
-    if (locker.state !== 'REGISTER') return alert("Must be in REGISTER state to add co-users!");
-    
-    pushHardwareEvent("Co-User Scan", { ownerUINs: [...locker.ownerUINs, "9999-0000"] }, "Secondary user appended to session.");
+    if (locker.state !== 'REGISTER') return;
+    const coUserUIN = generateRandomUIN();
+    pushHardwareEvent("Co-User Scan", { ownerUINs: [...locker.ownerUINs, coUserUIN] }, `Secondary user (${coUserUIN}) appended to session.`);
   };
 
   const simulateDeposit = () => {
+    const newWeight = generateRandomWeight();
     if (locker.state === 'REGISTER') {
-      pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: 2.45 }, "Initial baseline mass registered.");
+      pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: newWeight }, `Initial baseline mass registered at ${newWeight} kg.`);
     } else if (locker.state === 'OCCUPIED') {
-      pushHardwareEvent("Door Closed", { currentWeight: 3.10 }, "Door closed. New baseline mass registered.");
+      pushHardwareEvent("Door Closed", { currentWeight: newWeight }, `Door closed. New baseline mass registered at ${newWeight} kg.`);
     }
   };
 
