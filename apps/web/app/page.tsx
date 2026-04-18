@@ -91,6 +91,7 @@ export default function Dashboard() {
   };
 
   const simulateNetworkError = () => {
+    if (locker.state === 'SERVER_ERROR') return;
     pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR', previousState: locker.state }, "Lost connection to MOSIP Testbed.");
   };
 
