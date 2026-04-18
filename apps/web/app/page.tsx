@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type LockerState = 'IDLE' | 'REGISTER' | 'OCCUPIED' | 'UNREGISTER' | 'TAMPERED' | 'SERVER_ERROR';
 
@@ -12,7 +14,15 @@ interface LockerData {
   id: string;
   state: LockerState;
   currentWeight: number;
-  ownerUINs: string[]; 
+  ownerUINs: string[];
+  previousState?: LockerState; 
+}
+
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  action: string;
+  details: string;
 }
 
 const getStateColor = (state: LockerState) => {
@@ -33,26 +43,84 @@ export default function Dashboard() {
     state: "IDLE",
     currentWeight: 0.00,
     ownerUINs: [],
+    previousState: 'IDLE',
   });
 
-  const handleSimulateScan = () => {
-    // IDLE -> REGISTER
-    setLocker({ ...locker, state: 'REGISTER', ownerUINs: ["1234-5678"] });
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+
+  // --- THE BACKEND ABSTRACTION ENGINE ---
+  const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
+    setLocker(prev => ({ ...prev, ...newLockerState }));
+    
+    const newLog: LogEntry = {
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      action: action,
+      details: logDetails,
+    };
+    
+    setLogs(prevLogs => [newLog, ...prevLogs]);
+
+    // TODO: await fetch('/api/hardware-event', { method: 'POST', body: JSON.stringify({ action, newLockerState }) });
   };
 
-  const handleSimulateDeposit = () => {
-    // REGISTER -> OCCUPIED
-    setLocker({ ...locker, state: 'OCCUPIED', currentWeight: 2.45 });
+  const generateRandomUIN = () => {
+    return `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
   };
 
-  const handleSimulateTheft = () => {
-    // OCCUPIED -> TAMPERED
-    setLocker({ ...locker, state: 'TAMPERED', currentWeight: 0.00 });
+  const generateRandomWeight = () => {
+    return +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
   };
 
-  const handleSimulateCheckout = () => {
-    // OCCUPIED -> UNREGISTER -> IDLE (We'll skip straight to IDLE for the quick simulation)
-    setLocker({ id: "Locker A", state: 'IDLE', currentWeight: 0.00, ownerUINs: [] });
+  const simulateScan = () => {
+    if (locker.state === 'IDLE') {
+      const newUIN = generateRandomUIN();
+      pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: [newUIN] }, `Primary user (${newUIN}) authenticated.`);
+    } else if (locker.state === 'OCCUPIED') {
+      const temporaryWeight = +(locker.currentWeight * 0.4).toFixed(2); 
+      pushHardwareEvent("Access Scan", { currentWeight: temporaryWeight }, "Authorized user scanned ID. Door unlocked for temporary access.");
+    }
+  };
+
+  const simulateMultiScan = () => {
+    if (locker.state !== 'REGISTER') return;
+    const coUserUIN = generateRandomUIN();
+    pushHardwareEvent("Co-User Scan", { ownerUINs: [...locker.ownerUINs, coUserUIN] }, `Secondary user (${coUserUIN}) appended to session.`);
+  };
+
+  const simulateDeposit = () => {
+    const newWeight = generateRandomWeight();
+    if (locker.state === 'REGISTER') {
+      pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: newWeight }, `Initial baseline mass registered at ${newWeight} kg.`);
+    } else if (locker.state === 'OCCUPIED') {
+      pushHardwareEvent("Door Closed", { currentWeight: newWeight }, `Door closed. New baseline mass registered at ${newWeight} kg.`);
+    }
+  };
+
+  const simulateTheft = () => {
+    pushHardwareEvent("Tamper Detected", { state: 'TAMPERED', currentWeight: 0.00 }, "CRITICAL: Unauthorized mass drop.");
+  };
+
+  const simulateFailedCheckout = () => {
+    pushHardwareEvent("Checkout Denied", { state: 'UNREGISTER', currentWeight: 1.20 }, "User attempted checkout, but items remain inside.");
+  };
+
+  const simulateClearCheckout = () => {
+    pushHardwareEvent("Session Ended", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Compartment verified empty. Ledger cleared.");
+  };
+
+  const simulateNetworkError = () => {
+    if (locker.state === 'SERVER_ERROR') return;
+    pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR', previousState: locker.state }, "Lost connection to MOSIP Testbed.");
+  };
+
+  const simulateNetworkRestore = () => {
+    const targetState = locker.previousState || 'IDLE';
+    pushHardwareEvent("Network Restored", { state: targetState }, `Connection re-established. Resuming ${targetState} phase.`);
+  };
+
+  const simulateAdminOverride = () => {
+    pushHardwareEvent("Admin Override", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Tamper flag cleared by administrator. Locker reset to IDLE.");
   };
 
   return (
@@ -76,9 +144,22 @@ export default function Dashboard() {
             <Badge className={getStateColor(locker.state)}>{locker.state}</Badge>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-slate-500 mt-2">
-              <p>Current Load: <span className="font-mono text-slate-900 font-medium">{locker.currentWeight.toFixed(2)} kg</span></p>
-              <p>Owner UIN: <span className="font-mono text-slate-900">{locker.ownerUINs.join(', ')}</span></p>
+            <div className="flex items-end justify-between mt-2">
+              <div className="text-sm text-slate-500">
+                <p>Current Load: <span className="font-mono text-slate-900 font-medium">{locker.currentWeight.toFixed(2)} kg</span></p>
+                <p>Owner UINs: <span className="font-mono text-slate-900">{locker.ownerUINs.length > 0 ? locker.ownerUINs.join(', ') : 'None'}</span></p>
+              </div>
+              
+              {locker.state === 'TAMPERED' && (
+                <Button 
+                  onClick={simulateAdminOverride} 
+                  variant="destructive" 
+                  size="sm"
+                  className="font-bold shadow-sm"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -86,24 +167,100 @@ export default function Dashboard() {
 
       <Separator className="mb-8" />
 
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-slate-900 mb-4">Chain of Custody Logs</h2>
+        <Card className="shadow-sm border-slate-200">
+          <ScrollArea className="h-[250px] rounded-md border-0">
+            <Table>
+              <TableHeader className="bg-slate-100 sticky top-0">
+                <TableRow>
+                  <TableHead className="w-[120px]">Timestamp</TableHead>
+                  <TableHead className="w-[150px]">Action</TableHead>
+                  <TableHead>Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-slate-500 py-8">
+                      No events recorded yet. Click a Dev Tool button to simulate hardware.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-mono text-xs text-slate-500">{log.timestamp}</TableCell>
+                      <TableCell className="font-medium text-slate-900">{log.action}</TableCell>
+                      <TableCell className="text-slate-600">{log.details}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </Card>
+      </div>
+
       <div className="mt-16 p-6 border border-slate-200 rounded-xl bg-white shadow-sm">
         <div className="mb-4">
           <h2 className="text-lg font-bold text-slate-900">DEV TOOLS HERE!</h2>
           <p className="text-sm text-slate-500">For simulation purposes for now</p>
         </div>
         
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={handleSimulateScan} variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
-            1. Scan PhilSys QR
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Button 
+            onClick={simulateScan} 
+            disabled={locker.state !== 'IDLE' && locker.state !== 'OCCUPIED'}
+            variant="outline" className="border-blue-200 text-blue-700 disabled:opacity-50">
+            1. Scan ID
           </Button>
-          <Button onClick={handleSimulateDeposit} variant="outline" className="border-green-200 text-green-700 hover:bg-green-50">
-            2. Deposit & Close Door
+          
+          <Button 
+            onClick={simulateMultiScan} 
+            disabled={locker.state !== 'REGISTER'}
+            variant="outline" className="border-yellow-200 text-yellow-700 disabled:opacity-50">
+            1.5 Co-User Scan
           </Button>
-          <Button onClick={handleSimulateTheft} variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
-            ! Force Weight Drop
+          
+          <Button 
+            onClick={simulateDeposit} 
+            disabled={locker.state !== 'REGISTER' && locker.state !== 'OCCUPIED'}
+            variant="outline" className="border-green-200 text-green-700 disabled:opacity-50">
+            2. Close Door
           </Button>
-          <Button onClick={handleSimulateCheckout} variant="outline" className="border-orange-200 text-orange-700 hover:bg-orange-50">
-            3. Checkout & Empty
+          
+          <Button 
+            onClick={simulateTheft} 
+            disabled={locker.state !== 'OCCUPIED'}
+            variant="outline" className="border-red-200 text-red-700 border-2 disabled:opacity-50">
+            ! Force Theft
+          </Button>
+          
+          <Button 
+            onClick={simulateFailedCheckout} 
+            disabled={locker.state !== 'OCCUPIED'}
+            variant="outline" className="border-orange-200 text-orange-700 disabled:opacity-50">
+            ? Failed Checkout
+          </Button>
+          
+          <Button 
+            onClick={simulateClearCheckout} 
+            disabled={locker.state !== 'OCCUPIED' && locker.state !== 'UNREGISTER'}
+            variant="outline" className="border-slate-300 disabled:opacity-50">
+            3. Valid Checkout
+          </Button>
+          
+          <Button 
+            onClick={simulateNetworkError} 
+            variant="outline" className="border-slate-800 text-slate-800">
+            X Network Drop
+          </Button>
+
+          <Button
+            onClick={simulateNetworkRestore}
+            disabled={locker.state !== 'SERVER_ERROR'}
+            variant="outline" className="border-slate-300 disabled:opacity-50">
+            O Network Restore
           </Button>
         </div>
       </div>
