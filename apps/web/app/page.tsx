@@ -44,24 +44,20 @@ export default function Dashboard() {
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
-  const handleSimulateScan = () => {
-    // IDLE -> REGISTER
-    setLocker({ ...locker, state: 'REGISTER', ownerUINs: ["1234-5678"] });
-  };
+  // --- THE BACKEND ABSTRACTION ENGINE ---
+  const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
+    setLocker(prev => ({ ...prev, ...newLockerState }));
+    
+    const newLog: LogEntry = {
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      action: action,
+      details: logDetails,
+    };
+    
+    setLogs(prevLogs => [newLog, ...prevLogs]);
 
-  const handleSimulateDeposit = () => {
-    // REGISTER -> OCCUPIED
-    setLocker({ ...locker, state: 'OCCUPIED', currentWeight: 2.45 });
-  };
-
-  const handleSimulateTheft = () => {
-    // OCCUPIED -> TAMPERED
-    setLocker({ ...locker, state: 'TAMPERED', currentWeight: 0.00 });
-  };
-
-  const handleSimulateCheckout = () => {
-    // OCCUPIED -> UNREGISTER -> IDLE (We'll skip straight to IDLE for the quick simulation)
-    setLocker({ id: "Locker A", state: 'IDLE', currentWeight: 0.00, ownerUINs: [] });
+    // TODO: await fetch('/api/hardware-event', { method: 'POST', body: JSON.stringify({ action, newLockerState }) });
   };
 
   return (
