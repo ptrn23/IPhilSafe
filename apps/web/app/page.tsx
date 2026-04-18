@@ -1,6 +1,18 @@
+'use client'
+
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
+import { Separator } from "@/components/ui/separator"\
+
+type LockerState = 'IDLE' | 'REGISTER' | 'OCCUPIED' | 'UNREGISTER' | 'TAMPERED' | 'SERVER_ERROR';
+
+interface LockerData {
+  id: string;
+  state: LockerState;
+  currentWeight: number;
+  ownerUINs: string[]; 
+}
 
 export default function Dashboard() {
   return (
