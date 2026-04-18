@@ -100,6 +100,10 @@ export default function Dashboard() {
     pushHardwareEvent("Network Restored", { state: targetState }, `Connection re-established. Resuming ${targetState} phase.`);
   };
 
+  const simulateAdminOverride = () => {
+    pushHardwareEvent("Admin Override", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Tamper flag cleared by administrator. Locker reset to IDLE.");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900">
       <header className="mb-8 flex items-center justify-between">
@@ -121,9 +125,22 @@ export default function Dashboard() {
             <Badge className={getStateColor(locker.state)}>{locker.state}</Badge>
           </CardHeader>
           <CardContent>
-            <div className="text-sm text-slate-500 mt-2">
-              <p>Current Load: <span className="font-mono text-slate-900 font-medium">{locker.currentWeight.toFixed(2)} kg</span></p>
-              <p>Owner UIN: <span className="font-mono text-slate-900">{locker.ownerUINs.join(', ')}</span></p>
+            <div className="flex items-end justify-between mt-2">
+              <div className="text-sm text-slate-500">
+                <p>Current Load: <span className="font-mono text-slate-900 font-medium">{locker.currentWeight.toFixed(2)} kg</span></p>
+                <p>Owner UINs: <span className="font-mono text-slate-900">{locker.ownerUINs.length > 0 ? locker.ownerUINs.join(', ') : 'None'}</span></p>
+              </div>
+              
+              {locker.state === 'TAMPERED' && (
+                <Button 
+                  onClick={simulateAdminOverride} 
+                  variant="destructive" 
+                  size="sm"
+                  className="font-bold shadow-sm"
+                >
+                  Clear
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
