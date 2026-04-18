@@ -27,6 +27,13 @@ const getStateColor = (state: LockerState) => {
 };
 
 export default function Dashboard() {
+  const [locker, setLocker] = useState<LockerData>({
+    id: "Locker A",
+    state: "IDLE",
+    currentWeight: 0.00,
+    ownerUINs: ["12345678"],
+  });
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900">
       <header className="mb-8 flex items-center justify-between">
@@ -44,13 +51,13 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card className="shadow-sm border-slate-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-semibold">Locker A</CardTitle>
-            <Badge className="bg-blue-600 hover:bg-blue-700">Claimed</Badge>
+            <CardTitle className="text-lg font-semibold">{locker.id}</CardTitle>
+            <Badge className={getStateColor(locker.state)}>{locker.state}</Badge>
           </CardHeader>
           <CardContent>
             <div className="text-sm text-slate-500 mt-2">
-              <p>Current Load: <span className="font-mono text-slate-900 font-medium">6.7 kg</span></p>
-              <p>Owner UIN: <span className="font-mono text-slate-900">****-6767</span></p>
+              <p>Current Load: <span className="font-mono text-slate-900 font-medium">{locker.currentWeight.toFixed(2)} kg</span></p>
+              <p>Owner UIN: <span className="font-mono text-slate-900">{locker.ownerUINs.join(', ')}</span></p>
             </div>
           </CardContent>
         </Card>
