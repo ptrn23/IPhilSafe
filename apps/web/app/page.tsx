@@ -79,7 +79,11 @@ export default function Dashboard() {
   };
 
   const simulateDeposit = () => {
-    pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: 2.45 }, "Baseline mass registered.");
+    if (locker.state === 'REGISTER') {
+      pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: 2.45 }, "Initial baseline mass registered.");
+    } else if (locker.state === 'OCCUPIED') {
+      pushHardwareEvent("Door Closed", { currentWeight: 3.10 }, "Door closed. New baseline mass registered.");
+    }
   };
 
   const simulateTheft = () => {
@@ -209,7 +213,7 @@ export default function Dashboard() {
           
           <Button 
             onClick={simulateDeposit} 
-            disabled={locker.state !== 'REGISTER' && locker.state !== 'UNREGISTER'}
+            disabled={locker.state !== 'REGISTER' && locker.state !== 'OCCUPIED'}
             variant="outline" className="border-green-200 text-green-700 disabled:opacity-50">
             2. Close Door
           </Button>
