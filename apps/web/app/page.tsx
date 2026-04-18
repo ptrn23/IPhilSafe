@@ -14,7 +14,8 @@ interface LockerData {
   id: string;
   state: LockerState;
   currentWeight: number;
-  ownerUINs: string[]; 
+  ownerUINs: string[];
+  previousState?: LockerState; 
 }
 
 interface LogEntry {
@@ -42,6 +43,7 @@ export default function Dashboard() {
     state: "IDLE",
     currentWeight: 0.00,
     ownerUINs: [],
+    previousState: 'IDLE',
   });
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -89,7 +91,12 @@ export default function Dashboard() {
   };
 
   const simulateNetworkError = () => {
-    pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR' }, "Lost connection to MOSIP Testbed.");
+    pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR', previousState: locker.state }, "Lost connection to MOSIP Testbed.");
+  };
+
+  const simulateNetworkRestore = () => {
+    const targetState = locker.previousState || 'IDLE';
+    pushHardwareEvent("Network Restored", { state: targetState }, `Connection re-established. Resuming ${targetState} phase.`);
   };
 
   return (
@@ -213,7 +220,8 @@ export default function Dashboard() {
           </Button>
 
           <Button
-            onClick={simulateClearCheckout}
+            onClick={simulateNetworkRestore}
+            disabled={locker.state !== 'SERVER_ERROR'}
             variant="outline" className="border-slate-300 disabled:opacity-50">
             O Network Restore
           </Button>
