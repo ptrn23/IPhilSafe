@@ -65,7 +65,11 @@ export default function Dashboard() {
   };
 
   const simulateScan = () => {
-    pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: ["1234-5678"] }, "Primary user authenticated via MOSIP.");
+    if (locker.state === 'IDLE') {
+      pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: ["1234-5678"] }, "Primary user authenticated via MOSIP.");
+    } else if (locker.state === 'OCCUPIED') {
+      pushHardwareEvent("Access Scan", { currentWeight: 1.20 }, "Authorized user scanned ID. Door unlocked for temporary access.");
+    }
   };
 
   const simulateMultiScan = () => {
