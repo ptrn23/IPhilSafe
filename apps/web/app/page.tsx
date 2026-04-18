@@ -60,6 +60,36 @@ export default function Dashboard() {
     // TODO: await fetch('/api/hardware-event', { method: 'POST', body: JSON.stringify({ action, newLockerState }) });
   };
 
+  const simulateScan = () => {
+    pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: ["1234-5678"] }, "Primary user authenticated via MOSIP.");
+  };
+
+  const simulateMultiScan = () => {
+    if (locker.state !== 'REGISTER') return alert("Must be in REGISTER state to add co-users!");
+    
+    pushHardwareEvent("Co-User Scan", { ownerUINs: [...locker.ownerUINs, "9999-0000"] }, "Secondary user appended to session.");
+  };
+
+  const simulateDeposit = () => {
+    pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: 2.45 }, "Baseline mass registered.");
+  };
+
+  const simulateTheft = () => {
+    pushHardwareEvent("Tamper Detected", { state: 'TAMPERED', currentWeight: 0.00 }, "CRITICAL: Unauthorized mass drop.");
+  };
+
+  const simulateFailedCheckout = () => {
+    pushHardwareEvent("Checkout Denied", { state: 'UNREGISTER', currentWeight: 1.20 }, "User attempted checkout, but items remain inside.");
+  };
+
+  const simulateClearCheckout = () => {
+    pushHardwareEvent("Session Ended", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Compartment verified empty. Ledger cleared.");
+  };
+
+  const simulateNetworkError = () => {
+    pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR' }, "Lost connection to MOSIP Testbed.");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900">
       <header className="mb-8 flex items-center justify-between">
@@ -97,19 +127,14 @@ export default function Dashboard() {
           <p className="text-sm text-slate-500">For simulation purposes for now</p>
         </div>
         
-        <div className="flex flex-wrap gap-3">
-          <Button onClick={handleSimulateScan} variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
-            1. Scan PhilSys QR
-          </Button>
-          <Button onClick={handleSimulateDeposit} variant="outline" className="border-green-200 text-green-700 hover:bg-green-50">
-            2. Deposit & Close Door
-          </Button>
-          <Button onClick={handleSimulateTheft} variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
-            ! Force Weight Drop
-          </Button>
-          <Button onClick={handleSimulateCheckout} variant="outline" className="border-orange-200 text-orange-700 hover:bg-orange-50">
-            3. Checkout & Empty
-          </Button>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <Button onClick={simulateScan} variant="outline" className="border-blue-200 text-blue-700">1. Scan ID</Button>
+          <Button onClick={simulateMultiScan} variant="outline" className="border-yellow-200 text-yellow-700">1.5 Co-User Scan</Button>
+          <Button onClick={simulateDeposit} variant="outline" className="border-green-200 text-green-700">2. Close Door</Button>
+          <Button onClick={simulateTheft} variant="outline" className="border-red-200 text-red-700 border-2">! Force Theft</Button>
+          <Button onClick={simulateFailedCheckout} variant="outline" className="border-orange-200 text-orange-700">? Failed Checkout</Button>
+          <Button onClick={simulateClearCheckout} variant="outline" className="border-slate-300">3. Valid Checkout</Button>
+          <Button onClick={simulateNetworkError} variant="outline" className="border-slate-800 text-slate-800">X Network Drop</Button>
         </div>
       </div>
     </div>
