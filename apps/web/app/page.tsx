@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type LockerState = 'IDLE' | 'REGISTER' | 'OCCUPIED' | 'UNREGISTER' | 'TAMPERED' | 'SERVER_ERROR';
 
@@ -120,6 +122,40 @@ export default function Dashboard() {
       </div>
 
       <Separator className="mb-8" />
+
+      <div className="mt-8">
+        <h2 className="text-lg font-bold text-slate-900 mb-4">Chain of Custody Logs</h2>
+        <Card className="shadow-sm border-slate-200">
+          <ScrollArea className="h-[250px] rounded-md border-0">
+            <Table>
+              <TableHeader className="bg-slate-100 sticky top-0">
+                <TableRow>
+                  <TableHead className="w-[120px]">Timestamp</TableHead>
+                  <TableHead className="w-[150px]">Action</TableHead>
+                  <TableHead>Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {logs.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-slate-500 py-8">
+                      No events recorded yet. Click a Dev Tool button to simulate hardware.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-mono text-xs text-slate-500">{log.timestamp}</TableCell>
+                      <TableCell className="font-medium text-slate-900">{log.action}</TableCell>
+                      <TableCell className="text-slate-600">{log.details}</TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+        </Card>
+      </div>
 
       <div className="mt-16 p-6 border border-slate-200 rounded-xl bg-white shadow-sm">
         <div className="mb-4">
