@@ -32,9 +32,9 @@ export default function Dashboard() {
     id: "Locker A",
     state: "IDLE",
     currentWeight: 0.00,
-    ownerUINs: ["12345678"],
+    ownerUINs: [],
   });
-  
+
   const handleSimulateScan = () => {
     // IDLE -> REGISTER
     setLocker({ ...locker, state: 'REGISTER', ownerUINs: ["1234-5678"] });
@@ -82,6 +82,30 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      <Separator className="mb-8" />
+
+      <div className="mt-16 p-6 border border-slate-200 rounded-xl bg-white shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-lg font-bold text-slate-900">DEV TOOLS HERE!</h2>
+          <p className="text-sm text-slate-500">For simulation purposes for now</p>
+        </div>
+        
+        <div className="flex flex-wrap gap-3">
+          <Button onClick={handleSimulateScan} variant="outline" className="border-blue-200 text-blue-700 hover:bg-blue-50">
+            1. Scan PhilSys QR
+          </Button>
+          <Button onClick={handleSimulateDeposit} variant="outline" className="border-green-200 text-green-700 hover:bg-green-50">
+            2. Deposit & Close Door
+          </Button>
+          <Button onClick={handleSimulateTheft} variant="outline" className="border-red-200 text-red-700 hover:bg-red-50">
+            ! Force Weight Drop
+          </Button>
+          <Button onClick={handleSimulateCheckout} variant="outline" className="border-orange-200 text-orange-700 hover:bg-orange-50">
+            3. Checkout & Empty
+          </Button>
+        </div>
       </div>
     </div>
   )
