@@ -164,13 +164,59 @@ export default function Dashboard() {
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Button onClick={simulateScan} variant="outline" className="border-blue-200 text-blue-700">1. Scan ID</Button>
-          <Button onClick={simulateMultiScan} variant="outline" className="border-yellow-200 text-yellow-700">1.5 Co-User Scan</Button>
-          <Button onClick={simulateDeposit} variant="outline" className="border-green-200 text-green-700">2. Close Door</Button>
-          <Button onClick={simulateTheft} variant="outline" className="border-red-200 text-red-700 border-2">! Force Theft</Button>
-          <Button onClick={simulateFailedCheckout} variant="outline" className="border-orange-200 text-orange-700">? Failed Checkout</Button>
-          <Button onClick={simulateClearCheckout} variant="outline" className="border-slate-300">3. Valid Checkout</Button>
-          <Button onClick={simulateNetworkError} variant="outline" className="border-slate-800 text-slate-800">X Network Drop</Button>
+          <Button 
+            onClick={simulateScan} 
+            disabled={locker.state !== 'IDLE' && locker.state !== 'OCCUPIED'}
+            variant="outline" className="border-blue-200 text-blue-700 disabled:opacity-50">
+            1. Scan ID
+          </Button>
+          
+          <Button 
+            onClick={simulateMultiScan} 
+            disabled={locker.state !== 'REGISTER'}
+            variant="outline" className="border-yellow-200 text-yellow-700 disabled:opacity-50">
+            1.5 Co-User Scan
+          </Button>
+          
+          <Button 
+            onClick={simulateDeposit} 
+            disabled={locker.state !== 'REGISTER' && locker.state !== 'UNREGISTER'}
+            variant="outline" className="border-green-200 text-green-700 disabled:opacity-50">
+            2. Close Door
+          </Button>
+          
+          <Button 
+            onClick={simulateTheft} 
+            disabled={locker.state !== 'OCCUPIED'}
+            variant="outline" className="border-red-200 text-red-700 border-2 disabled:opacity-50">
+            ! Force Theft
+          </Button>
+          
+          <Button 
+            onClick={simulateFailedCheckout} 
+            disabled={locker.state !== 'OCCUPIED'}
+            variant="outline" className="border-orange-200 text-orange-700 disabled:opacity-50">
+            ? Failed Checkout
+          </Button>
+          
+          <Button 
+            onClick={simulateClearCheckout} 
+            disabled={locker.state !== 'OCCUPIED' && locker.state !== 'UNREGISTER'}
+            variant="outline" className="border-slate-300 disabled:opacity-50">
+            3. Valid Checkout
+          </Button>
+          
+          <Button 
+            onClick={simulateNetworkError} 
+            variant="outline" className="border-slate-800 text-slate-800">
+            X Network Drop
+          </Button>
+
+          <Button
+            onClick={simulateClearCheckout}
+            variant="outline" className="border-slate-300 disabled:opacity-50">
+            O Network Restore
+          </Button>
         </div>
       </div>
     </div>
