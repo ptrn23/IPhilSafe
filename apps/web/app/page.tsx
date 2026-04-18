@@ -252,6 +252,7 @@ export default function Dashboard() {
           
           <Button 
             onClick={simulateNetworkError} 
+            disabled={locker.state === 'SERVER_ERROR'}
             variant="outline" className="border-slate-800 text-slate-800">
             X Network Drop
           </Button>
