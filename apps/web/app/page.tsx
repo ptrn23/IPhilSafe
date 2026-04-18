@@ -15,6 +15,13 @@ interface LockerData {
   ownerUINs: string[]; 
 }
 
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  action: string;
+  details: string;
+}
+
 const getStateColor = (state: LockerState) => {
   switch (state) {
     case 'IDLE': return "bg-green-600 hover:bg-green-700";
@@ -34,6 +41,8 @@ export default function Dashboard() {
     currentWeight: 0.00,
     ownerUINs: [],
   });
+
+  const [logs, setLogs] = useState<LogEntry[]>([]);
 
   const handleSimulateScan = () => {
     // IDLE -> REGISTER
