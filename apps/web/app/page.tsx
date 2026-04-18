@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
 
 type LockerState = 'IDLE' | 'REGISTER' | 'OCCUPIED' | 'UNREGISTER' | 'TAMPERED' | 'SERVER_ERROR';
 
@@ -33,6 +34,26 @@ export default function Dashboard() {
     currentWeight: 0.00,
     ownerUINs: ["12345678"],
   });
+  
+  const handleSimulateScan = () => {
+    // IDLE -> REGISTER
+    setLocker({ ...locker, state: 'REGISTER', ownerUINs: ["1234-5678"] });
+  };
+
+  const handleSimulateDeposit = () => {
+    // REGISTER -> OCCUPIED
+    setLocker({ ...locker, state: 'OCCUPIED', currentWeight: 2.45 });
+  };
+
+  const handleSimulateTheft = () => {
+    // OCCUPIED -> TAMPERED
+    setLocker({ ...locker, state: 'TAMPERED', currentWeight: 0.00 });
+  };
+
+  const handleSimulateCheckout = () => {
+    // OCCUPIED -> UNREGISTER -> IDLE (We'll skip straight to IDLE for the quick simulation)
+    setLocker({ id: "Locker A", state: 'IDLE', currentWeight: 0.00, ownerUINs: [] });
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900">
