@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Locker {
+  lockerId  Int          @id @map("locker_id")
+  weight    Int?
+  auditLogs AuditLog[]
+  users     UserLocker[]
+
+  @@map("locker")
+}
+
+model User {
+  uinPhilsys Int          @id @map("uin_philsys")
+  firstName  String       @map("first_name") @db.VarChar(100)
+  userRole   role         @map("user_role")
+  lockers    UserLocker[]
+
+  @@map("user")
+}
+
+model UserLocker {
+  userId   Int    @map("user_id")
+  lockerId Int    @map("locker_id")
+  locker   Locker @relation(fields: [lockerId], references: [lockerId], onDelete: NoAction, onUpdate: NoAction)
+  user     User   @relation(fields: [userId], references: [uinPhilsys], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([userId, lockerId])
+  @@map("user_locker")
+}
+
+model AuditLog {
+  logId     BigInt        @id @default(autoincrement()) @map("log_id")
+  createdAt DateTime?     @default(now()) @map("created_at") @db.Timestamp(6)
+  lockerId  Int?          @map("locker_id")
+  logMsg    String?       @map("log_msg") @db.VarChar(100)
+  sysType   sys_log_type? @map("sys_type")
+  locker    Locker?       @relation(fields: [lockerId], references: [lockerId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("audit_log")
+}
+
+enum role {
+  Admin
+  User
+}
+
+enum sys_log_type {
+  Registering
+  Unregister
+  Tampered
+  Added_user  @map("Added user")
+}

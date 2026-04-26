@@ -47,7 +47,12 @@ export default function Dashboard() {
   });
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const fetchUsers = async () => {
+    const res = await fetch("/api/users");
+    const data = await res.json();
 
+    console.log("📦 API RESPONSE:", data);
+  };
   // --- THE BACKEND ABSTRACTION ENGINE ---
   const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
     setLocker(prev => ({ ...prev, ...newLockerState }));
@@ -265,6 +270,13 @@ export default function Dashboard() {
           </Button>
         </div>
       </div>
+      <Button
+        onClick={fetchUsers}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        Fetch Users (API Test)
+      </Button>
     </div>
   )
 }
