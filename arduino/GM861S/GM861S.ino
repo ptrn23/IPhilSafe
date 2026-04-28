@@ -111,18 +111,21 @@ void sendScanToServer(String qrPayload) {
     http.begin(client, serverURL);
     http.addHeader("Content-Type", "application/json");
 
-    String jsonPayload = "{\"qr_data\":\"" + qrPayload + "\"}";
+    // Use ArduinoJson to properly escape the QR payload (which is itself JSON)
+    JsonDocument doc;
+    doc["qr_data"] = qrPayload;
+    String jsonPayload;
+    serializeJson(doc, jsonPayload);
+
     int httpResponseCode = http.POST(jsonPayload);
 
     Serial.print("HTTP Response code: ");
     Serial.println(httpResponseCode);
 
     http.end();
-    
   } else {
     Serial.println("WiFi Disconnected");
     setColor(colorMap("White"));
-    return -1;
   }
 }
 

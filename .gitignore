@@ -38,3 +38,18 @@ yarn-error.log*
 *.pem
 
 packages/database/generated
+
+# Python virtual environments
+.venv/
+env/
+
+# Python compiled files
+__pycache__/
+*.pyc
+*.pyo
+
+# Python keystores and crypto (sensitive — never commit)
+*.p12
+
+# Service logs
+authenticator.log
