@@ -10,24 +10,22 @@ void setup() {
 }
 
 void loop() {
-  // --- IPhilSafe Locker Status Colors ---
-  
-  setColor(1023, 0, 0);       // Red (Error/Locked)
+  setColor(1023, 0, 0);       // Red
   delay(1000);
 
-  setColor(1023, 50, 0);     // Orange (Processing/Verifying Weight)
+  setColor(1023, 50, 0);      // Orange 
   delay(1000);
 
-  setColor(512, 1023, 0);     // Yellow (Registration Window)
+  setColor(512, 1023, 0);     // Yellow 
   delay(1000);
   
-  setColor(0, 1023, 0);       // Green (Success/Unlocked)
+  setColor(0, 1023, 0);       // Green 
   delay(1000);
   
-  setColor(0, 0, 100);       // Blue (Idle/Ready to Scan)
+  setColor(0, 0, 100);        // Blue
   delay(1000);
   
-  setColor(100, 200, 100); // White (All colors ON)
+  setColor(100, 200, 100);    // White 
   delay(1000);
 }
 // Helper function to easily set colors

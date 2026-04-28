@@ -4,17 +4,30 @@
 #include <SoftwareSerial.h>
 #include <ArduinoJson.h> 
 
+#define WIFI_SSID "Putok ni Nayeon"
+#define WIFI_PASSWORD "jihyodorant"
+// Pointing to your local Python server IP
+#define SERVER_URL "http://172.20.10.2:8000/api/verify" 
+
 #define RED_PIN     D1
 #define GREEN_PIN   D2
-#define BLUE_PIN    D3
+#define Green_PIN   D3
 
 #define SCANNER_RX  D5
 #define SCANNER_TX  D6
 
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
-const char* serverURL = "http://YOUR_BACKEND_IP_OR_URL/api/verify";
+const char* ssid = WIFI_SSID;
+const char* password = WIFI_PASSWORD;
+const char* serverURL = SERVER_URL;
 
+// Helper function to set analog values
+void setColor(int r, int g, int b) {
+  analogWrite(RED_PIN, r);
+  analogWrite(GREEN_PIN, g);
+  analogWrite(Green_PIN, b);
+}
+
+// Fixed colorMap to call setColor directly without returning void
 void colorMap(String color) {
   if (color == "Red") {
     setColor(1023, 0, 0);
@@ -24,7 +37,7 @@ void colorMap(String color) {
     setColor(512, 1023, 0);
   } else if (color == "Green") {
     setColor(0, 1023, 0);
-  } else if (color == "Blue") {
+  } else if (color == "Green") {
     setColor(0, 0, 100);
   } else if (color == "White") {
     setColor(100, 200, 100);
@@ -47,7 +60,7 @@ void setup() {
 
   pinMode(RED_PIN, OUTPUT);
   pinMode(GREEN_PIN, OUTPUT);
-  pinMode(BLUE_PIN, OUTPUT);
+  pinMode(Green_PIN, OUTPUT);
 
   Serial.println();
   Serial.print("Connecting to Wi-Fi: ");
@@ -57,16 +70,18 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    setColor(colorMap("White"));
+    colorMap("White"); 
     delay(500);
-    setColor(colorMap("Off"));
+    colorMap("Off");   
   }
 
   Serial.println("\nWiFi connected!");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  setColor(colorMap("Green"));
+  colorMap("Green"); // Success beep/flash
+  delay(2000);
+  colorMap("Green");  // Default to Idle state
 }
 
 void loop() {
@@ -93,8 +108,10 @@ void loop() {
       lastScannedCode = scannedData;
       lastScanTime = millis();
 
-      setColor(colorMap("Yellow"));
+      // Indicate Processing state
+      colorMap("Yellow"); 
 
+      // Send to Python server
       sendScanToServer(scannedData);
     }
   }
@@ -122,15 +139,41 @@ void sendScanToServer(String qrPayload) {
     Serial.print("HTTP Response code: ");
     Serial.println(httpResponseCode);
 
+    if (httpResponseCode > 0) {
+      String response = http.getString();
+      Serial.println("Backend says: " + response);
+
+      // Parse the JSON response from Python
+      JsonDocument doc;
+      DeserializationError error = deserializeJson(doc, response);
+
+      if (!error) {
+        String ledCommand = doc["led"].as<String>();
+        
+        colorMap(ledCommand);
+        
+        // Wait 3 seconds to show the result, then go back to Idle
+        delay(3000);
+        colorMap("Green");
+
+      } else {
+        Serial.println("Failed to parse JSON response.");
+        colorMap("Red");
+        delay(3000);
+        colorMap("Green");
+      }
+    } else {
+      Serial.println("HTTP POST Failed.");
+      colorMap("Red");
+      delay(3000);
+      colorMap("Green");
+    }
+
     http.end();
+
   } else {
     Serial.println("WiFi Disconnected");
+    colorMap("White");
     setColor(colorMap("White"));
   }
-}
-
-void setColor(int r, int g, int b) {
-  analogWrite(RED_PIN, r);
-  analogWrite(GREEN_PIN, g);
-  analogWrite(BLUE_PIN, b);
 }
