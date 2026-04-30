@@ -10,6 +10,13 @@ from mosip_auth_sdk import MOSIPAuthenticator
 from mosip_auth_sdk.models import DemographicsModel
 from pydantic import BaseModel
 
+'''
+INSTRUCTIONS TO RUN LOCALLY:
+1. turn on WireGuard tunnel
+2. active .venv (source .venv/bin/activate)
+3. (uvicorn main:app --host 0.0.0.0 --port 8000) to run server
+'''
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -25,13 +32,12 @@ app = FastAPI()
 class ScanRequest(BaseModel):
     qr_data: str
 
-
 class ScanResponse(BaseModel):
     status: str  # "verified" | "rejected" | "error"
+    led: str
     uin: str | None = None
     name: str | None = None
     message: str | None = None
-
 
 def parse_dob(raw_dob: str) -> str:
     """Convert 'July 14, 1986' → '1986/07/14' as expected by MOSIP."""
@@ -40,15 +46,8 @@ def parse_dob(raw_dob: str) -> str:
     except ValueError as e:
         raise ValueError(f"Unrecognised DOB format {raw_dob!r} (expected e.g. 'July 14, 1986')") from e
 
-
+# parse QR payload to extract uin, dob, name
 def parse_qr(raw: str) -> dict:
-    """Parse the PhilSys QR JSON payload into normalised uin/dob/name fields.
-
-    Expected shape (single-line string from scanner):
-      {"DateIssued": "...", "Issuer": "PSA",
-       "subject": {"lName": "...", "fName": "...", "sex": "...",
-                   "DOB": "July 14, 1986", "POB": "...", "UIN": "..."}}
-    """
     try:
         data = json.loads(raw)
     except json.JSONDecodeError as e:
@@ -70,11 +69,6 @@ def parse_qr(raw: str) -> dict:
     return {"uin": str(uin), "dob": parse_dob(raw_dob), "name": name}
 
 
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-
 @app.post("/api/verify", response_model=ScanResponse)
 async def verify(body: ScanRequest):
     logger.info(f"Raw QR data: {body.qr_data!r}")
@@ -83,7 +77,7 @@ async def verify(body: ScanRequest):
         qr = parse_qr(body.qr_data)
     except ValueError as e:
         logger.error(f"QR parse error: {e}")
-        return ScanResponse(status="error", message=str(e))
+        return ScanResponse(status="error", led="Red", message=str(e))
 
     uin, dob, name = qr["uin"], qr["dob"], qr["name"]
     logger.info(f"Parsed — UIN: {uin}  DOB: {dob}  Name: {name}")
@@ -101,7 +95,8 @@ async def verify(body: ScanRequest):
         verified: bool = response_body.get("response", {}).get("authStatus", False)
     except Exception as e:
         logger.error(f"MOSIP auth error: {e}")
-        return ScanResponse(status="error", uin=uin, name=name, message=str(e))
+        return ScanResponse(status="error", led="Red", uin=uin, name=name, message=str(e))
 
     status = "verified" if verified else "rejected"
-    return ScanResponse(status=status, uin=uin, name=name)
+    led = "Green" if verified else "Red"
+    return ScanResponse(status=status, led=led, uin=uin, name=name)
