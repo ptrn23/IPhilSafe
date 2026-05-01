@@ -4,6 +4,8 @@ import os
 from datetime import datetime
 from pathlib import Path
 
+import psycopg2
+from dotenv import load_dotenv
 from dynaconf import Dynaconf
 from fastapi import FastAPI
 from mosip_auth_sdk import MOSIPAuthenticator
@@ -13,8 +15,8 @@ from pydantic import BaseModel
 '''
 INSTRUCTIONS TO RUN LOCALLY:
 1. turn on WireGuard tunnel
-2. active .venv (source .venv/bin/activate)
-3. (uvicorn main:app --host 0.0.0.0 --port 8000) to run server
+2. activate .venv (source .venv/bin/activate)
+3. uvicorn main:app --host 0.0.0.0 --port 8000
 '''
 
 logging.basicConfig(level=logging.INFO)
@@ -23,11 +25,21 @@ logger = logging.getLogger(__name__)
 SERVICE_DIR = Path(__file__).parent
 os.chdir(SERVICE_DIR)
 
+# Load DATABASE_URL from the shared database .env file
+DB_ENV_FILE = SERVICE_DIR / "../../packages/database/.env"
+load_dotenv(dotenv_path=DB_ENV_FILE)
+
 config = Dynaconf(settings_files=[str(SERVICE_DIR / "config.toml")], environments=False)
 authenticator = MOSIPAuthenticator(config=config)
 
-app = FastAPI()
+# database config
+DATABASE_URL: str = os.environ.get("DATABASE_URL") or config.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL is not set. Add it to packages/database/.env or export it as an environment variable."
+    )
 
+app = FastAPI()
 
 class ScanRequest(BaseModel):
     qr_data: str
@@ -39,6 +51,26 @@ class ScanResponse(BaseModel):
     name: str | None = None
     message: str | None = None
 
+# inserts a verified user into the user table in db
+def save_verified_user(uin: str, name: str) -> None:
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        try:
+            with conn:                        # auto-commit on success, rollback on exception
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        INSERT INTO "user" (uin_philsys, first_name, user_role)
+                        VALUES (%s, %s, 'User')
+                        ON CONFLICT (uin_philsys) DO NOTHING
+                        """,
+                        (int(uin), name[:100]),   # cast UIN to int; truncate name to VarChar(100)
+                    )
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.error(f"user table write failed: {e}")
+
 def parse_dob(raw_dob: str) -> str:
     """Convert 'July 14, 1986' → '1986/07/14' as expected by MOSIP."""
     try:
@@ -46,7 +78,6 @@ def parse_dob(raw_dob: str) -> str:
     except ValueError as e:
         raise ValueError(f"Unrecognised DOB format {raw_dob!r} (expected e.g. 'July 14, 1986')") from e
 
-# parse QR payload to extract uin, dob, name
 def parse_qr(raw: str) -> dict:
     try:
         data = json.loads(raw)
@@ -68,11 +99,12 @@ def parse_qr(raw: str) -> dict:
 
     return {"uin": str(uin), "dob": parse_dob(raw_dob), "name": name}
 
-
+# API endpoints
 @app.post("/api/verify", response_model=ScanResponse)
 async def verify(body: ScanRequest):
     logger.info(f"Raw QR data: {body.qr_data!r}")
 
+    # parse qr
     try:
         qr = parse_qr(body.qr_data)
     except ValueError as e:
@@ -82,6 +114,7 @@ async def verify(body: ScanRequest):
     uin, dob, name = qr["uin"], qr["dob"], qr["name"]
     logger.info(f"Parsed — UIN: {uin}  DOB: {dob}  Name: {name}")
 
+    # mosip auth
     try:
         demographics = DemographicsModel(dob=dob)
         response = authenticator.auth(
@@ -98,5 +131,9 @@ async def verify(body: ScanRequest):
         return ScanResponse(status="error", led="Red", uin=uin, name=name, message=str(e))
 
     status = "verified" if verified else "rejected"
-    led = "Green" if verified else "Red"
+    led = "Green"    if verified else "Red"
+
+    if verified:
+        save_verified_user(uin, name or "")
+
     return ScanResponse(status=status, led=led, uin=uin, name=name)
