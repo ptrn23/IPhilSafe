@@ -38,7 +38,7 @@ export async function POST(
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    if (latestRegLog.createdAt && latestRegLog.createdAt >= fiveMinutesAgo){
+    if (latestRegLog && latestRegLog.createdAt && latestRegLog.createdAt >= fiveMinutesAgo){
       return NextResponse.json({ error: `Registration period has already started` }, { status: 404 });
     }
 

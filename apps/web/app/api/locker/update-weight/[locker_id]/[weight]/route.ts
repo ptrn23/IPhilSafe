@@ -20,7 +20,7 @@ export async function POST(
     const newWeight = Number(weight);
 
     // check if locker is existing
-    const locker = prisma.locker.findUnique({ where: { lockerId: l_id } })
+    const locker = await prisma.locker.findUnique({ where: { lockerId: l_id } })
     if (!locker) {
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
     }

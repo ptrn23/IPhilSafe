@@ -1,13 +1,12 @@
-import { prisma } from "@repo/db";
+import { prisma, Locker, sys_log_type } from "@repo/db";
 
-
-export async function get_locker_state(l){
+export async function get_locker_state(l: Locker | null){
   if (!l){
     return null;
   }
   
   const last_log = await prisma.auditLog.findFirst({
-  where: { lockerId: l.locker_id },
+  where: { lockerId: l.lockerId },
   orderBy: { createdAt: 'desc' },
   select: { sysType: true } // Avoid BigInt logId crash
   })
@@ -22,13 +21,13 @@ export async function get_locker_state(l){
   return state;
 }
 
-export async function create_audit_log(l_id, sys_type, msg, user_id : Number|null = null){
+export async function create_audit_log(l_id: number, sys_type: sys_log_type, msg: string, user_id : number|null = null){
   await prisma.auditLog.create({
     data: { 
-      lockerId: parseInt(l_id), 
+      lockerId: l_id, 
       sysType: sys_type, 
       logMsg: msg,
-      user_id: user_id
+      user_id: user_id ?? null
     }
   });
 }
