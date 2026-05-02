@@ -59,12 +59,9 @@ export default function Dashboard() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   useEffect(() => {
     const savedSession = localStorage.getItem('iphilsafe_session');
-    
     if (!savedSession) {
-      // kick if not logged in
       router.push('/');
     } else {
-      // load their session if logged in
       setSession(JSON.parse(savedSession));
     }
   }, [router]);
@@ -74,6 +71,78 @@ export default function Dashboard() {
     const data = await res.json();
     console.log("📦 API RESPONSE:", data);
   };
+
+  const fetchLockers = async () => {
+    const id = 10101
+    const res = await fetch(`/api/get-lockers/${id}`);
+    const data = await res.json();
+    console.log("🗄️| lockers returned:", data);
+  };
+
+  const addUser = async () => {
+    const qrdata = JSON.stringify({ subject: { uin: 392943, fname: "John" } });
+    const lockerid = 2
+    const res = await fetch(`/api/locker/add-user`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+    });
+    const data = await res.json();
+    console.log("🗄️| added lockers:", data);
+  };
+
+  const fetchAuditLogs = async () => {
+    const id = 10101
+    const res = await fetch(`/api/get-audit-logs/${id}`);
+    const data = await res.json();
+    console.log("📑| audit logs returned:", data);
+  };
+
+  const revokeLockerAccess = async () => {
+    const u_id = 10101
+    const l_id = 2
+    const res = await fetch(`/api/locker/revoke-access/${l_id}/${u_id}`, { method: "POST" });
+    const data = await res.json();
+    console.log("🚫 | Access for locker revoked :", data);
+  };
+
+  const getLockerStatus = async () => {
+    const lockerid = 2
+    const res = await fetch(`/api/locker/get-status/${lockerid}`);
+    const data = await res.json();
+    console.log(`🗄️| status of locker ${lockerid} :`, data);
+  }; 
+
+  const openLocker = async () => {
+    const userId = 392943
+    const lockerid = 2 
+    const res = await fetch(`/api/locker/open-locker/${userId}/${lockerid}`, { method: "POST" });
+    const data = await res.json();
+    console.log(`🔒| open locker ${lockerid} for user ${userId} :`, data);
+  }; 
+
+  const startRegistration = async () => {
+    const lockerid = 2
+    const res = await fetch(`/api/locker/start-reg/${lockerid}`, { method: "POST" });
+    const data = await res.json();
+    console.log(`🗄️| start registration for locker ${lockerid}:`, data);
+  }; 
+
+  const unregisterLocker = async () => {
+    const lockerid = 2
+    const res = await fetch(`/api/locker/unreg/${lockerid}`, { method: "POST" });
+    const data = await res.json();
+    console.log(`🗄️| unregister locker ${lockerid}:`, data);
+  }; 
+
+  const updateWeight = async () => {
+    const weight = 100
+    const lockerid = 2
+    const res = await fetch(`/api/locker/update-weight/${lockerid}/${weight}`, { method: "POST" });
+    const data = await res.json();
+    console.log(`🗄️| update weight ${lockerid}:`, data);
+  }; 
+
 
   const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
     setLocker(prev => ({ ...prev, ...newLockerState }));
@@ -165,25 +234,18 @@ export default function Dashboard() {
       {locker.state === 'TAMPERED' && session.role === 'ADMIN' && (
         <div className="mb-6 bg-red-600 border-2 border-red-800 rounded-xl p-4 shadow-lg animate-pulse flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="bg-white text-red-600 rounded-full p-2 font-black text-xl w-10 h-10 flex items-center justify-center">
-              !
-            </div>
+            <div className="bg-white text-red-600 rounded-full p-2 font-black text-xl w-10 h-10 flex items-center justify-center">!</div>
             <div>
               <h2 className="text-white font-extrabold text-lg uppercase tracking-wider">Critical Security Alert</h2>
               <p className="text-red-100 text-sm font-medium">Unauthorized mass shift detected in {locker.id}. Immediate physical inspection required.</p>
             </div>
           </div>
-          <Button 
-            onClick={simulateAdminOverride} 
-            variant="outline" 
-            className="bg-white text-red-700 border-transparent hover:bg-red-50 font-bold"
-          >
+          <Button onClick={simulateAdminOverride} variant="outline" className="bg-white text-red-700 border-transparent hover:bg-red-50 font-bold">
             Acknowledge & Clear
           </Button>
         </div>
       )}
 
-      {/* DASHBOARD GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card className="shadow-sm border-slate-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -197,14 +259,8 @@ export default function Dashboard() {
                 <p>Owner UINs: <span className="font-mono text-slate-900">{locker.ownerUINs.length > 0 ? locker.ownerUINs.join(', ') : 'None'}</span></p>
               </div>
               
-              {/* ADMIN-ONLY LOGIC: Only show the clear button if Tampered AND they are an Admin */}
               {locker.state === 'TAMPERED' && session.role === 'ADMIN' && (
-                <Button 
-                  onClick={simulateAdminOverride} 
-                  variant="destructive" 
-                  size="sm"
-                  className="font-bold shadow-sm"
-                >
+                <Button onClick={simulateAdminOverride} variant="destructive" size="sm" className="font-bold shadow-sm">
                   Clear (Admin)
                 </Button>
               )}
@@ -250,26 +306,43 @@ export default function Dashboard() {
       </div>
 
       {session.role === 'ADMIN' && (
-        <div className="mt-16 p-6 border border-slate-200 rounded-xl bg-white shadow-sm">
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-slate-900">DEV TOOLS (Admin Only)</h2>
-            <p className="text-sm text-slate-500">For hardware simulation purposes</p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <Button onClick={simulateScan} disabled={locker.state !== 'IDLE' && locker.state !== 'OCCUPIED'} variant="outline" className="border-blue-200 text-blue-700 disabled:opacity-50">1. Scan ID</Button>
-            <Button onClick={simulateMultiScan} disabled={locker.state !== 'REGISTER'} variant="outline" className="border-yellow-200 text-yellow-700 disabled:opacity-50">1.5 Co-User Scan</Button>
-            <Button onClick={simulateDeposit} disabled={locker.state !== 'REGISTER' && locker.state !== 'OCCUPIED'} variant="outline" className="border-green-200 text-green-700 disabled:opacity-50">2. Close Door</Button>
-            <Button onClick={simulateTheft} disabled={locker.state !== 'OCCUPIED'} variant="outline" className="border-red-200 text-red-700 border-2 disabled:opacity-50">! Force Theft</Button>
-            <Button onClick={simulateFailedCheckout} disabled={locker.state !== 'OCCUPIED'} variant="outline" className="border-orange-200 text-orange-700 disabled:opacity-50">? Failed Checkout</Button>
-            <Button onClick={simulateClearCheckout} disabled={locker.state !== 'OCCUPIED' && locker.state !== 'UNREGISTER'} variant="outline" className="border-slate-300 disabled:opacity-50">3. Valid Checkout</Button>
-            <Button onClick={simulateNetworkError} disabled={locker.state === 'SERVER_ERROR'} variant="outline" className="border-slate-800 text-slate-800">X Network Drop</Button>
-            <Button onClick={simulateNetworkRestore} disabled={locker.state !== 'SERVER_ERROR'} variant="outline" className="border-slate-300 disabled:opacity-50">O Network Restore</Button>
+        <div className="mt-16 p-6 border border-slate-200 rounded-xl bg-white shadow-sm space-y-8">
+          <div>
+            <div className="mb-4">
+              <h2 className="text-lg font-bold text-slate-900">UI State Simulators</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Button onClick={simulateScan} disabled={locker.state !== 'IDLE' && locker.state !== 'OCCUPIED'} variant="outline" className="border-blue-200 text-blue-700 disabled:opacity-50">1. Scan ID</Button>
+              <Button onClick={simulateMultiScan} disabled={locker.state !== 'REGISTER'} variant="outline" className="border-yellow-200 text-yellow-700 disabled:opacity-50">1.5 Co-User Scan</Button>
+              <Button onClick={simulateDeposit} disabled={locker.state !== 'REGISTER' && locker.state !== 'OCCUPIED'} variant="outline" className="border-green-200 text-green-700 disabled:opacity-50">2. Close Door</Button>
+              <Button onClick={simulateTheft} disabled={locker.state !== 'OCCUPIED'} variant="outline" className="border-red-200 text-red-700 border-2 disabled:opacity-50">! Force Theft</Button>
+              <Button onClick={simulateFailedCheckout} disabled={locker.state !== 'OCCUPIED'} variant="outline" className="border-orange-200 text-orange-700 disabled:opacity-50">? Failed Checkout</Button>
+              <Button onClick={simulateClearCheckout} disabled={locker.state !== 'OCCUPIED' && locker.state !== 'UNREGISTER'} variant="outline" className="border-slate-300 disabled:opacity-50">3. Valid Checkout</Button>
+              <Button onClick={simulateNetworkError} disabled={locker.state === 'SERVER_ERROR'} variant="outline" className="border-slate-800 text-slate-800">X Network Drop</Button>
+              <Button onClick={simulateNetworkRestore} disabled={locker.state !== 'SERVER_ERROR'} variant="outline" className="border-slate-300 disabled:opacity-50">O Network Restore</Button>
+            </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <Button onClick={fetchUsers} variant="outline" className="border-indigo-200 text-indigo-700">Fetch Users (API Test)</Button>
+          <Separator />
+
+          <div>
+             <div className="mb-4">
+              <h2 className="text-lg font-bold text-indigo-900">Backend API Tests</h2>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Button onClick={fetchUsers} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Users</Button>
+              <Button onClick={fetchLockers} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Lockers</Button>
+              <Button onClick={addUser} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Add User</Button>
+              <Button onClick={revokeLockerAccess} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Revoke Access</Button>
+              <Button onClick={getLockerStatus} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Get Status</Button>
+              <Button onClick={openLocker} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Open Locker</Button>
+              <Button onClick={startRegistration} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Start Reg Period</Button>
+              <Button onClick={unregisterLocker} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Unregister Locker</Button>
+              <Button onClick={updateWeight} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Update Weight</Button>
+              <Button onClick={fetchAuditLogs} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Audit Logs</Button>
+            </div>
           </div>
+
         </div>
       )}
 
