@@ -20,6 +20,7 @@ model User {
   uinPhilsys Int          @id @map("uin_philsys")
   firstName  String       @map("first_name") @db.VarChar(100)
   userRole   role         @map("user_role")
+  audit_log  AuditLog[]
   lockers    UserLocker[]
 
   @@map("user")
@@ -41,7 +42,9 @@ model AuditLog {
   lockerId  Int?          @map("locker_id")
   logMsg    String?       @map("log_msg") @db.VarChar(100)
   sysType   sys_log_type? @map("sys_type")
+  user_id   Int?
   locker    Locker?       @relation(fields: [lockerId], references: [lockerId], onDelete: NoAction, onUpdate: NoAction)
+  user      User?         @relation(fields: [user_id], references: [uinPhilsys], onDelete: NoAction, onUpdate: NoAction)
 
   @@map("audit_log")
 }
@@ -55,5 +58,7 @@ enum sys_log_type {
   Registering
   Unregister
   Tampered
-  Added_user  @map("Added user")
+  Added_user     @map("Added user")
+  Locker_Accesed
+  Revoke_Access
 }
