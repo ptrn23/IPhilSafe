@@ -1,11 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse,NextRequest } from 'next/server';
 import { prisma } from '@repo/db';
 import { get_locker_state, create_audit_log } from '@/app/api/utils';
 
 const w_threshold = 50
 
 export async function POST(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{weight: Int16Array, locker_id: string }> }
 
 ) {
@@ -17,7 +17,7 @@ export async function POST(
     }
 
     const l_id = Number(locker_id);
-    const newWeight = Math.round(Number(weight));
+    const newWeight = Number(weight);
 
     // check if locker is existing
     const locker = prisma.locker.findUnique({ where: { lockerId: l_id } })
