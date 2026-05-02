@@ -7,6 +7,36 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"; // <-- NEW IMPORT
+import { POST } from "./api/locker/unreg/[locker_id]/route";
+
+type LockerState = 'IDLE' | 'REGISTER' | 'OCCUPIED' | 'UNREGISTER' | 'TAMPERED' | 'SERVER_ERROR';
+
+interface LockerData {
+  id: string;
+  state: LockerState;
+  currentWeight: number;
+  ownerUINs: string[];
+  previousState?: LockerState; 
+}
+
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  action: string;
+  details: string;
+}
+
+const getStateColor = (state: LockerState) => {
+  switch (state) {
+    case 'IDLE': return "bg-green-600 hover:bg-green-700";
+    case 'REGISTER': return "bg-yellow-500 hover:bg-yellow-600";
+    case 'OCCUPIED': return "bg-blue-600 hover:bg-blue-700";
+    case 'UNREGISTER': return "bg-orange-500 hover:bg-orange-600";
+    case 'TAMPERED': return "bg-red-600 hover:bg-red-700 hover:animate-pulse";
+    case 'SERVER_ERROR': return "bg-slate-200 text-slate-800 border-slate-400";
+    default: return "bg-slate-500";
+  }
+};
 
 export default function LandingPage() {
   const router = useRouter();
