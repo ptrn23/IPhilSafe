@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@repo/db';
 import { create_audit_log } from '../../../utils';
 export async function POST(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{locker_id: string }> }
 
 ) {

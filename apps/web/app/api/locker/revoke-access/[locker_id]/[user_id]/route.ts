@@ -3,7 +3,7 @@ import { prisma } from "@repo/db";
 import { get_locker_state , create_audit_log} from "../../../../utils";
 
 export async function POST(
-  req:Request,
+  req: NextRequest,
     { params }: { params: Promise<{ locker_id: string, user_id: string }> }
 ) {
   try {

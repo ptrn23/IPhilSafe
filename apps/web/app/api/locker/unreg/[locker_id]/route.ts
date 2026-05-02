@@ -1,8 +1,8 @@
 import { prisma } from '@repo/db';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { create_audit_log, get_locker_state } from '../../../utils';
 export async function POST(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{locker_id: string }> }
 ) {
   try {

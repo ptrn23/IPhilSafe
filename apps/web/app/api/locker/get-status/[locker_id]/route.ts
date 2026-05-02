@@ -13,7 +13,7 @@ function get_locker_state(lastLog, locker){
 }
 
 export async function GET(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ locker_id: string }> }
 ) {
   try {

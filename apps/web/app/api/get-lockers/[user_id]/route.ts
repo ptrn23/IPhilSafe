@@ -3,7 +3,7 @@ import { prisma } from "@repo/db";
 import { get_locker_state } from "../../utils";
 
 export async function GET(
-    req: Request,
+    req: NextRequest,
     { params }: { params: Promise<{ user_id: string }> }
 ) {
   try {
