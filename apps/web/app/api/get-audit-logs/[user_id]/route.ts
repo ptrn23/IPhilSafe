@@ -19,7 +19,10 @@ export async function GET(
       where: { uinPhilsys: u_id }
     });
 
-    
+    // check if user exists
+    if (!user){
+      return NextResponse.json({ error: `user  ${u_id} not found` }, { status: 404 });
+    }
 
     // 2. Strict check for the ID
     if (user.userRole != 'Admin') {
