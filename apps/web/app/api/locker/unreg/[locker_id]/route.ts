@@ -1,15 +1,15 @@
 import { prisma } from '@repo/db';
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { create_audit_log, get_locker_state } from '../../../utils';
 export async function POST(
-    req: Request,
-    { params }: { params: {locker_id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{locker_id: string }> }
 ) {
   try {
     const { locker_id } = await params;
     const l_id = parseInt(locker_id, 10)
     
-    if (locker_id === undefined || locker_id === null) {
+    if (!locker_id) {
       return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
     }
 

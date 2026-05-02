@@ -3,11 +3,16 @@ import { prisma } from "@repo/db";
 import { get_locker_state , create_audit_log} from "../../../../utils";
 
 export async function POST(
-  req:Request,
+  req: NextRequest,
     { params }: { params: Promise<{ locker_id: string, user_id: string }> }
 ) {
   try {
     const {locker_id, user_id}  = await params;
+    // Strict check for the params
+    if (!locker_id || !user_id ) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    }
+
     const l_id = parseInt(locker_id, 10)
     const u_id = parseInt(user_id, 10)
 
@@ -15,9 +20,6 @@ export async function POST(
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
     });
-    if (locker_id === undefined || locker_id === null || user_id === undefined || user_id === null) {
-      return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });
-    }
     if (!locker){
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
     }
@@ -30,7 +32,9 @@ export async function POST(
     if (user === undefined || user === null) {
       return NextResponse.json({ error: "No user in the database" }, { status: 400 });
     }
-    else if (user.userRole != "Admin"){
+    
+    // For admin users only
+    if (user.userRole != "Admin"){
       return NextResponse.json({ error: "Only for admin access" }, { status: 400 });
     }
 

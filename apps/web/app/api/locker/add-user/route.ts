@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest} from 'next/server';
 import { prisma } from '@repo/db';
 import { create_audit_log } from '../../utils';
 export async function POST(
-    req: NextResponse
+    req: NextRequest
 ) {
   try {
     const { qrData, locker_id } = await req.json();
-
+    // 2. Strict check for the ID
+    if (!qrData || !locker_id ) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    }
     const user_data = JSON.parse(qrData);
     const uin = user_data.subject.uin
     const first_name = user_data.subject.fname
@@ -45,7 +48,7 @@ export async function POST(
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    if (!(latestRegLog?.createdAt && latestRegLog.createdAt > fiveMinutesAgo)){
+    if (latestRegLog && latestRegLog.createdAt && latestRegLog.createdAt > fiveMinutesAgo){
       return NextResponse.json({ error: `Past Registration period or registration hasn't started` }, { status: 404 });
     }
 

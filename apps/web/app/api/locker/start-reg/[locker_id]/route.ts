@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@repo/db';
 import { create_audit_log } from '../../../utils';
 export async function POST(
-    req: Request,
-    { params }: { params: {locker_id: string } }
+    req: NextRequest,
+    { params }: { params: Promise<{locker_id: string }> }
 
 ) {
   try {
@@ -11,6 +11,11 @@ export async function POST(
     console.log("POST request received at /api/lockers/register");
 
     const {locker_id } = await params;
+    // Strict check for the params
+    if (!locker_id) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    }
+
     const l_id = parseInt(locker_id, 10)
 
     // check if locker exists
@@ -33,7 +38,7 @@ export async function POST(
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    if (latestRegLog && latestRegLog.createdAt >= fiveMinutesAgo){
+    if (latestRegLog && latestRegLog.createdAt && latestRegLog.createdAt >= fiveMinutesAgo){
       return NextResponse.json({ error: `Registration period has already started` }, { status: 404 });
     }
 
