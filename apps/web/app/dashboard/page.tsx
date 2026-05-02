@@ -162,6 +162,27 @@ export default function Dashboard() {
 
       <Separator className="mb-8" />
 
+      {locker.state === 'TAMPERED' && session.role === 'ADMIN' && (
+        <div className="mb-6 bg-red-600 border-2 border-red-800 rounded-xl p-4 shadow-lg animate-pulse flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="bg-white text-red-600 rounded-full p-2 font-black text-xl w-10 h-10 flex items-center justify-center">
+              !
+            </div>
+            <div>
+              <h2 className="text-white font-extrabold text-lg uppercase tracking-wider">Critical Security Alert</h2>
+              <p className="text-red-100 text-sm font-medium">Unauthorized mass shift detected in {locker.id}. Immediate physical inspection required.</p>
+            </div>
+          </div>
+          <Button 
+            onClick={simulateAdminOverride} 
+            variant="outline" 
+            className="bg-white text-red-700 border-transparent hover:bg-red-50 font-bold"
+          >
+            Acknowledge & Clear
+          </Button>
+        </div>
+      )}
+
       {/* DASHBOARD GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card className="shadow-sm border-slate-200">

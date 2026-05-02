@@ -1,54 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import QRScanner from '@/components/QRScanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"; // <-- NEW IMPORT
 
 export default function LandingPage() {
   const router = useRouter();
   const [devInput, setDevInput] = useState('');
   const [error, setError] = useState('');
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [pendingUin, setPendingUin] = useState('');
 
-  const handleLogin = async (rawQrString: string) => {
+  useEffect(() => {
+    const savedSession = localStorage.getItem('iphilsafe_session');
+    if (savedSession) router.push('/dashboard');
+  }, [router]);
+
+  const handleInitialScan = async (rawQrString: string) => {
     setError('');
-
-    // 1. DELETE the mock parsing logic below
-    // 2. UNCOMMENT the fetch call below
-    // 3. API should return { uin: string, role: string }
-    
-    /*
-    try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qr_data: rawQrString })
-      });
-      
-      if (!response.ok) throw new Error("MOSIP Verification Failed");
-      
-      // If using cookies, the backend handles the session! 
-      // Just redirect the user:
-      router.push('/dashboard');
-    } catch (err) {
-      setError("Verification failed. Please try again.");
-    }
-    */
-
     try {
       const parsed = JSON.parse(rawQrString);
-      const uin = parsed.subject?.UIN || parsed.uin;
+      const uin = parsed.subject?.UIN || parsed.uin || parsed.qr_data;
       if (!uin) throw new Error("Invalid QR: No UIN found");
-      const role = uin === '1234-5678-9012' ? 'ADMIN' : 'USER';
-      localStorage.setItem('iphilsafe_session', JSON.stringify({ uin, role }));
-      router.push('/dashboard');
+
+      // 1. DELETE the setShowRoleModal logic below
+      // 2. fetch the user's role from the database
+      // 3. save to session and router.push('/dashboard')
+      
+      // MOCK: Intercept the login and ask for the role
+      setPendingUin(uin);
+      setShowRoleModal(true);
 
     } catch (err) {
-      console.error(err);
-      setError("Invalid QR format. Are you sure this is a PhilSys ID?");
+      setError("Invalid QR format. Please try again.");
     }
+  };
+
+  const finalizeMockLogin = (role: 'ADMIN' | 'USER') => {
+    localStorage.setItem('iphilsafe_session', JSON.stringify({ uin: pendingUin, role }));
+    setShowRoleModal(false);
+    router.push('/dashboard');
   };
 
   return (
@@ -60,7 +55,7 @@ export default function LandingPage() {
         </CardHeader>
         
         <CardContent className="space-y-8">
-          <QRScanner onScanSuccess={handleLogin} />
+          <QRScanner onScanSuccess={handleInitialScan} />
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
@@ -70,28 +65,38 @@ export default function LandingPage() {
           <div className="space-y-3 bg-slate-100 p-4 rounded-xl border border-slate-200">
             <p className="text-xs font-bold text-slate-500 uppercase">Developer Bypass</p>
             <Input 
-              placeholder='Paste JSON String here...' 
+              placeholder='Paste JSON String here (e.g. {"uin": "1234-5678"})' 
               value={devInput}
               onChange={(e) => setDevInput(e.target.value)}
               className="font-mono text-xs"
             />
-            <Button 
-              variant="secondary" 
-              className="w-full"
-              onClick={() => handleLogin(devInput)}
-            >
+            <Button variant="secondary" className="w-full" onClick={() => handleInitialScan(devInput)}>
               Simulate Scan
             </Button>
           </div>
 
-          {error && (
-            <p className="text-red-500 text-sm font-medium text-center bg-red-50 p-2 rounded-md">
-              {error}
-            </p>
-          )}
-
+          {error && <p className="text-red-500 text-sm font-medium text-center bg-red-50 p-2 rounded-md">{error}</p>}
         </CardContent>
       </Card>
+
+      <Dialog open={showRoleModal} onOpenChange={setShowRoleModal}>
+        <DialogContent className="sm:max-w-md bg-white p-6">
+          <DialogHeader>
+            <DialogTitle>MOCK LOG IN</DialogTitle>
+            <DialogDescription>
+              Select how you want to log in as UIN: <span className="font-mono font-bold text-black">{pendingUin}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-4">
+            <Button onClick={() => finalizeMockLogin('ADMIN')} className="w-full bg-slate-900 text-white hover:bg-slate-800">
+              Log in as ADMIN
+            </Button>
+            <Button onClick={() => finalizeMockLogin('USER')} variant="outline" className="w-full">
+              Log in as USER
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
