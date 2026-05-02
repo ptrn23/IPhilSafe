@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { create_audit_log, get_locker_state } from '../../../utils';
 export async function POST(
     req: Request,
-    { params }: { params: {locker_id: string } }
+    { params }: { params: Promise<{locker_id: string }> }
 ) {
   try {
     const { locker_id } = await params;

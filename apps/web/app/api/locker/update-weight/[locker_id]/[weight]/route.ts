@@ -6,7 +6,7 @@ const w_threshold = 50
 
 export async function POST(
     req: Request,
-    { params }: { params: {weight: Int16Array, locker_id: string } }
+    { params }: { params: Promise<{weight: Int16Array, locker_id: string }> }
 
 ) {
   try {

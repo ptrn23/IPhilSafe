@@ -4,7 +4,7 @@ import { get_locker_state } from "../../utils";
 
 export async function GET(
     req: Request,
-    { params }: { params: { user_id: string } }
+    { params }: { params: Promise<{ user_id: string }> }
 ) {
   try {
     const {user_id}  = await params;

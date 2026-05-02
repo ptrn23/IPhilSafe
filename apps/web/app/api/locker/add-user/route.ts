@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest} from 'next/server';
 import { prisma } from '@repo/db';
 import { create_audit_log } from '../../utils';
 export async function POST(
-    req: NextResponse
+    req: Request
 ) {
   try {
     const { qrData, locker_id } = await req.json();
