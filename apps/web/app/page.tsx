@@ -7,6 +7,7 @@ import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { POST } from "./api/locker/unreg/[locker_id]/route";
 
 type LockerState = 'IDLE' | 'REGISTER' | 'OCCUPIED' | 'UNREGISTER' | 'TAMPERED' | 'SERVER_ERROR';
 
@@ -47,12 +48,102 @@ export default function Dashboard() {
   });
 
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const fetchUsers = async () => {
-    const res = await fetch("/api/users");
+  const fetchLockers = async () => {
+    const id = 10101
+    const res = await fetch(`/api/get-lockers/${id}`);
     const data = await res.json();
 
-    console.log("📦 API RESPONSE:", data);
+    console.log("🗄️| lockers returned:", data);
   };
+  const addUser = async () => {
+    const qrdata = JSON.stringify({
+      subject: {
+        uin: 392943,
+        fname: "John",
+      },
+    });
+    const lockerid = 2
+    const res = await fetch(`/api/locker/add-user`, {
+      method: "POST",
+      headers:{
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        qrData: qrdata,
+        locker_id: lockerid,
+      }),
+
+    });
+    const data = await res.json();
+
+    console.log("🗄️| added lockers:", data);
+  };
+  const fetchAuditLogs = async () => {
+    const id = 10101
+    const res = await fetch(`/api/get-audit-logs/${id}`);
+    const data = await res.json();
+
+    console.log("📑| audit logs returned:", data);
+  };
+
+  const revokeLockerAccess = async () => {
+    const u_id = 10101
+    const l_id = 2
+    const res = await fetch(`/api/locker/revoke-access/${l_id}/${u_id}`, {
+      method: "POST"
+    });
+    const data = await res.json();
+
+    console.log("🚫 | Access for locker revoked :", data);
+  };
+  const getLockerStatus = async () => {
+    const qrdata = JSON.stringify({
+      subject: {
+        uin: 392943,
+        fname: "John",
+      },
+    });
+    const lockerid = 2
+    const res = await fetch(`/api/locker/get-status/${lockerid}`);
+    const data = await res.json();
+    console.log(`🗄️| status of locker ${lockerid} :`, data);
+  }; 
+  const openLocker = async () => {
+    const userId = 392943
+    const lockerid = 2 
+    const res = await fetch(`/api/locker/open-locker/${userId}/${lockerid}`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    console.log(`🔒| open locker ${lockerid} for user ${userId} :`, data);
+  }; 
+  const startRegistration = async () => {
+    const userId = 10101
+    const lockerid = 2
+    const res = await fetch(`/api/locker/start-reg/${lockerid}`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    console.log(`🗄️| start registration for locker ${lockerid}:`, data);
+  }; 
+  const unregisterLocker = async () => {
+    const userId = 10101
+    const lockerid = 2
+    const res = await fetch(`/api/locker/unreg/${lockerid}`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    console.log(`🗄️| unregister locker ${lockerid}:`, data);
+  }; 
+  const updateWeight = async () => {
+    const weight = 100
+    const lockerid = 2
+    const res = await fetch(`/api/locker/update-weight/${lockerid}/${weight}`, {
+      method: "POST"
+    });
+    const data = await res.json();
+    console.log(`🗄️| update weight ${lockerid}:`, data);
+  }; 
   // --- THE BACKEND ABSTRACTION ENGINE ---
   const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
     setLocker(prev => ({ ...prev, ...newLockerState }));
@@ -271,12 +362,69 @@ export default function Dashboard() {
         </div>
       </div>
       <Button
-        onClick={fetchUsers}
+        onClick={fetchLockers}
         variant="outline"
         className="border-indigo-200 text-indigo-700"
       >
-        Fetch Users (API Test)
+        Fetch Lockers (API Test)
       </Button>
+      <Button
+        onClick={addUser}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        Add user (API Test)
+      </Button>
+      <Button
+        onClick={revokeLockerAccess}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        revoke locker access (API Test)
+      </Button>
+      <Button
+        onClick={getLockerStatus}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        get locker status (API Test)
+      </Button>
+      <Button
+        onClick={openLocker}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        Open locker (API Test)
+      </Button>
+      <Button
+        onClick={startRegistration}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        start registration period (API Test)
+      </Button>
+      <Button
+        onClick={unregisterLocker}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        unregister locker (API Test)
+      </Button>
+      <Button
+        onClick={updateWeight}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        update weight (API Test)
+      </Button>
+      <Button
+        onClick={fetchAuditLogs}
+        variant="outline"
+        className="border-indigo-200 text-indigo-700"
+      >
+        fetch audit logs (API Test)
+      </Button>
+      
     </div>
   )
 }
