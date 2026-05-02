@@ -8,6 +8,11 @@ export async function POST(
 ) {
   try {
     const {locker_id, user_id}  = await params;
+    // Strict check for the params
+    if (!locker_id || !user_id ) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    }
+
     const l_id = parseInt(locker_id, 10)
     const u_id = parseInt(user_id, 10)
 

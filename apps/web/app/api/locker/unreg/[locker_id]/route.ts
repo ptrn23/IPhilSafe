@@ -9,7 +9,7 @@ export async function POST(
     const { locker_id } = await params;
     const l_id = parseInt(locker_id, 10)
     
-    if (locker_id === undefined || locker_id === null) {
+    if (!locker_id) {
       return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
     }
 

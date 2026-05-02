@@ -19,9 +19,9 @@ export async function GET(
   try {
 
     const {locker_id} = await params
-
+    
     // Strict check for the ID
-    if (locker_id === undefined || locker_id === null) {
+    if (!locker_id ) {
       return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
     }
 
@@ -32,7 +32,7 @@ export async function GET(
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
     });
-    // check if 
+    // check if locker in database
     if (!locker){
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
     }
@@ -40,7 +40,7 @@ export async function GET(
 
     // Check if it's actually a number (Note: 0 is a valid number!)
     if (isNaN(l_id)) {
-      return NextResponse.json({ error: `Value '${lockerId}' is not a valid number` }, { status: 400 });
+      return NextResponse.json({ error: `Value '${l_id}' is not a valid number` }, { status: 400 });
     }
 
     // 3. Database Queries

@@ -11,6 +11,11 @@ export async function POST(
 ) {
   try {
     const { locker_id, weight } = await params;
+    // Strict check for the params
+    if (!locker_id || !weight ) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    }
+
     const l_id = Number(locker_id);
     const newWeight = Math.round(Number(weight));
 

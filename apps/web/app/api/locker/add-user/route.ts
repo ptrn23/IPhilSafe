@@ -6,7 +6,10 @@ export async function POST(
 ) {
   try {
     const { qrData, locker_id } = await req.json();
-
+    // 2. Strict check for the ID
+    if (!qrData || !locker_id ) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    }
     const user_data = JSON.parse(qrData);
     const uin = user_data.subject.uin
     const first_name = user_data.subject.fname

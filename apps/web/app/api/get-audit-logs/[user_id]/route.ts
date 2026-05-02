@@ -8,6 +8,10 @@ export async function GET(
 ) {
   try {
     const {user_id}  = await params;
+    // 2. Strict check for the ID
+    if (!user_id) {
+      return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });
+    }
     const u_id = parseInt(user_id, 10)
 
     console.log("Audit logs accessed by user:", u_id);
@@ -16,10 +20,7 @@ export async function GET(
       where: { uinPhilsys: u_id }
     });
 
-    // 2. Strict check for the ID
-    if (user === undefined || user === null) {
-      return NextResponse.json({ error: "No user in the database" }, { status: 400 });
-    }
+    
 
     // 2. Strict check for the ID
     if (user.userRole != 'Admin') {
