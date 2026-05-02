@@ -38,16 +38,6 @@ export async function POST(
     }
 
     // if not, create log
-    const new_log = await prisma.auditLog.create({
-      data:{
-        createdAt: new Date,
-        lockerId: l_id,
-        logMsg: `Registration start`,
-        sysType: "Registering"
-      }
-    });
-
-    // create audit log
     create_audit_log(l_id, 'Registering', "Registration period started")
 
     return NextResponse.json({ message: "Regsitration start", lockerId: locker.lockerId }, { status: 201 });
