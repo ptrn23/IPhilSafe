@@ -43,7 +43,9 @@ export async function GET(
                         },
                       })
                       : null;
-                      
+    if (!lockers){
+      return NextResponse.json([]);  
+    }
     // get locker states
     const res = await Promise.all(
       lockers.map(async (l) => {

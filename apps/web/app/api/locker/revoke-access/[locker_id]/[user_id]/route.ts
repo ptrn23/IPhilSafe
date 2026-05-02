@@ -20,9 +20,6 @@ export async function POST(
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
     });
-    if (locker_id === undefined || locker_id === null || user_id === undefined || user_id === null) {
-      return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });
-    }
     if (!locker){
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
     }
@@ -35,7 +32,9 @@ export async function POST(
     if (user === undefined || user === null) {
       return NextResponse.json({ error: "No user in the database" }, { status: 400 });
     }
-    else if (user.userRole != "Admin"){
+    
+    // For admin users only
+    if (user.userRole != "Admin"){
       return NextResponse.json({ error: "Only for admin access" }, { status: 400 });
     }
 
