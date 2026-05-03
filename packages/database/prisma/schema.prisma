@@ -8,10 +8,10 @@ datasource db {
 }
 
 model Locker {
-  lockerId  Int         @id @map("locker_id")
+  lockerId  Int          @id @map("locker_id")
   weight    Int?
   auditLogs AuditLog[]
-  users     UserLocker?
+  users     UserLocker[]
 
   @@map("locker")
 }
@@ -28,8 +28,9 @@ model User {
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
 model UserLocker {
-  lockerId Int    @id @map("locker_id")
+  lockerId Int    @map("locker_id")
   userId   String @map("user_id") @db.VarChar
+  ul_id    Int    @id @default(autoincrement())
   locker   Locker @relation(fields: [lockerId], references: [lockerId], onDelete: NoAction, onUpdate: NoAction)
   user     User   @relation(fields: [userId], references: [uinPhilsys], onDelete: NoAction, onUpdate: NoAction)
 
