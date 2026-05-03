@@ -1,6 +1,6 @@
 import { prisma } from '@repo/db';
 import { NextResponse, NextRequest } from 'next/server';
-import { create_audit_log, get_locker_state } from '../../utils';
+import { create_audit_log, get_locker_state, isLockerClosed } from '../../utils';
 export async function POST(
     req: NextRequest) {
   try {
@@ -19,7 +19,11 @@ export async function POST(
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
     }
     
-
+    // check if locker is closed
+    if ((await isLockerClosed(locker)) == false){
+      return NextResponse.json({ error: "Locker is not closed" }, { status: 404 });
+    }
+    
     // check locker is in occupied state
     const cur_l_state = await get_locker_state(locker)
     if (cur_l_state != "OCCUPIED"){
@@ -31,7 +35,7 @@ export async function POST(
     if (isNaN(w)){
       return NextResponse.json({ error: `Weight is not a number ${weight}` }, { status: 404 });
     }
-    
+
     if (w > w_empty){
       return NextResponse.json({ error: `Current weight ${weight}: All belongings haven't been cleared out of locker` }, { status: 404 });
     }
