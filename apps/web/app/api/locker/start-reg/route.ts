@@ -1,16 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@repo/db';
-import { create_audit_log, get_locker_state } from '../../../utils';
+import { create_audit_log, get_locker_state } from '../../utils';
 export async function POST(
     req: NextRequest,
-    { params }: { params: Promise<{locker_id: string }> }
-
 ) {
   try {
     // Adding a log here so you can see it in your VS Code terminal
     console.log("POST request received at /api/lockers/register");
 
-    const {locker_id } = await params;
+    const {locker_id } = await req.json()
     // Strict check for the params
     if (!locker_id) {
       return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });

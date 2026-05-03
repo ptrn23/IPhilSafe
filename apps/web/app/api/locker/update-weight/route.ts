@@ -5,12 +5,10 @@ import { get_locker_state, create_audit_log } from '@/app/api/utils';
 const w_threshold = 50
 
 export async function POST(
-    req: NextRequest,
-    { params }: { params: Promise<{weight: string, locker_id: string }> }
-
+    req: NextRequest
 ) {
   try {
-    const { locker_id, weight } = await params;
+    const { locker_id, weight } = await req.json()
     // Strict check for the params
     if (!locker_id || !weight ) {
       return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });

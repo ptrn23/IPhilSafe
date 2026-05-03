@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from "@repo/db";
 import { get_locker_state } from '@/app/api/utils';
-export async function GET(
+export async function POST(
     req: NextRequest,
-    { params }: { params: Promise<{ locker_id: string }> }
 ) {
   try {
 
-    const {locker_id} = await params
+    const {locker_id} = await req.json()
     
     // Strict check for the ID
     if (!locker_id ) {

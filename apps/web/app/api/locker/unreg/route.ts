@@ -1,14 +1,12 @@
 import { prisma } from '@repo/db';
 import { NextResponse, NextRequest } from 'next/server';
-import { create_audit_log, get_locker_state } from '../../../utils';
+import { create_audit_log, get_locker_state } from '../../utils';
 export async function POST(
-    req: NextRequest,
-    { params }: { params: Promise<{locker_id: string }> }
-) {
+    req: NextRequest) {
   try {
-    const { locker_id } = await params;
+    const { locker_id, weight } = await req.json()
     const l_id = parseInt(locker_id, 10)
-    
+    const w = parseInt(weight, 10)
     if (!locker_id) {
       return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
     }
@@ -28,6 +26,15 @@ export async function POST(
       return NextResponse.json({ error: `Locker not occupied in state ${cur_l_state}` }, { status: 404 });
     }
 
+    // check if weight is within empty weight assumption
+    const w_empty = 10
+    if (!isNaN(w)){
+      return NextResponse.json({ error: `Weight is not a number ${weight}` }, { status: 404 });
+    }
+    if (w > w_empty){
+      return NextResponse.json({ error: `Current weight ${weight}: All belongings haven't been cleared out of locker` }, { status: 404 });
+    }
+    
     // 1. Remove the user assignment (handleCheckout)
     // We use deleteMany because lockerId isn't the unique ID on its own in userLocker
     const res = await prisma.userLocker.deleteMany({ 

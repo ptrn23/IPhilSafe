@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from "@repo/db";
 
-export async function GET(
+export async function POST(
     req: NextRequest,
-    { params }: { params: Promise<{ user_id: string }> }
 ) {
   try {
-    const {user_id}  = await params;
+    const {user_id}  = await req.json()
     // 2. Strict check for the ID
     if (!user_id) {
       return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });

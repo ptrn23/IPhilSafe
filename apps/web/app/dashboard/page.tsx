@@ -68,7 +68,12 @@ export default function Dashboard() {
 
   const fetchLockers = async () => {
     const id = 10101
-    const res = await fetch(`/api/get-lockers/${id}`);
+    const res = await fetch(`/api/get-lockers`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        user_id: String(id) }),
+    });
     const data = await res.json();
     console.log("🗄️| lockers returned:", data);
   };
@@ -83,7 +88,7 @@ export default function Dashboard() {
     const res = await fetch(`/api/locker/add-user`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+      body: JSON.stringify({ qrData: qrdata, locker_id: String(lockerid) }),
     });
     const data = await res.json();
     console.log("🗄️| added lockers:", data);
@@ -91,7 +96,12 @@ export default function Dashboard() {
 
   const fetchAuditLogs = async () => {
     const id = 10101
-    const res = await fetch(`/api/get-audit-logs/${id}`);
+    const res = await fetch(`/api/get-audit-logs`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        user_id: String(id) }),
+    });
     const data = await res.json();
     console.log("📑| audit logs returned:", data);
   };
@@ -99,16 +109,29 @@ export default function Dashboard() {
   const revokeLockerAccess = async () => {
     const u_id = 10101
     const l_id = 2
-    const res = await fetch(`/api/locker/revoke-access/${l_id}/${u_id}`, { method: "POST" });
+    const res = await fetch(`/api/locker/revoke-access`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        locker_id: String(l_id), 
+        user_id: String(u_id) 
+      }),
+    });
     const data = await res.json();
     console.log("🚫 | Access for locker revoked :", data);
   };
 
   const getLockerStatus = async () => {
-    const lockerid = 2
-    const res = await fetch(`/api/locker/get-status/${lockerid}`);
+    const l_id = 2
+    const res = await fetch(`/api/locker/get-status`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        locker_id: String(l_id), 
+      }),
+    });
     const data = await res.json();
-    console.log(`🗄️| status of locker ${lockerid} :`, data);
+    console.log(`🗄️| status of locker ${l_id} :`, data);
   }; 
 
   const openLocker = async () => {
@@ -128,25 +151,45 @@ export default function Dashboard() {
   }; 
 
   const startRegistration = async () => {
-    const lockerid = 2
-    const res = await fetch(`/api/locker/start-reg/${lockerid}`, { method: "POST" });
+    const l_id = 2
+    const res = await fetch(`/api/locker/start-reg`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        locker_id: l_id, 
+      }),
+    });
     const data = await res.json();
-    console.log(`🗄️| start registration for locker ${lockerid}:`, data);
+    console.log(`🗄️| start registration for locker ${l_id}:`, data);
   }; 
 
   const unregisterLocker = async () => {
-    const lockerid = 2
-    const res = await fetch(`/api/locker/unreg/${lockerid}`, { method: "POST" });
+    const l_id = 2
+    const res = await fetch(`/api/locker/unreg`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        locker_id: l_id, 
+        weight: 0
+      }),
+    });
     const data = await res.json();
-    console.log(`🗄️| unregister locker ${lockerid}:`, data);
+    console.log(`🗄️| unregister locker ${l_id}:`, data);
   }; 
 
   const updateWeight = async () => {
-    const weight = 100
-    const lockerid = 2
-    const res = await fetch(`/api/locker/update-weight/${lockerid}/${weight}`, { method: "POST" });
+    const l_id = 2
+    const new_weight = 100
+    const res = await fetch(`/api/locker/update-weight`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        locker_id: l_id, 
+        weight: new_weight
+      }),
+    });
     const data = await res.json();
-    console.log(`🗄️| update weight ${lockerid}:`, data);
+    console.log(`🗄️| update weight ${l_id}:`, data);
   }; 
 
 

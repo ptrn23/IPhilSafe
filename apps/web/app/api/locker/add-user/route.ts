@@ -43,18 +43,20 @@ export async function POST(
       });
     }
 
+    const minTimeout = 2;
     // check if in registering period
     const latestRegLog = await prisma.auditLog.findFirst({
       where: {
         lockerId: l_id, 
-        sysType: "Registering"
+        sysType: "Registering",
+        createdAt: {
+          gte: new Date(Date.now() - minTimeout * 60 * 1000)
+        }
       },
       orderBy: {createdAt: "desc"},
     })
 
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
-    if (latestRegLog?.createdAt && latestRegLog.createdAt > fiveMinutesAgo){
+    if (!latestRegLog){
       return NextResponse.json({ error: `Past Registration period or registration hasn't started` }, { status: 404 });
     }
 
