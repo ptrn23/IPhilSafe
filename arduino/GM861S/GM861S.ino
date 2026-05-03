@@ -6,12 +6,11 @@
 
 #define WIFI_SSID "Putok ni Nayeon"
 #define WIFI_PASSWORD "jihyodorant"
-// Pointing to your local Python server IP
-#define SERVER_URL "http://172.20.10.2:8000/api/verify" 
+#define SERVER_URL "https://iphilsafe.vercel.app/" 
 
 #define RED_PIN     D1
 #define GREEN_PIN   D2
-#define Green_PIN   D3
+#define BLUE_PIN    D3
 
 #define SCANNER_RX  D5
 #define SCANNER_TX  D6
@@ -20,14 +19,11 @@ const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 const char* serverURL = SERVER_URL;
 
-// Helper function to set analog values
 void setColor(int r, int g, int b) {
   analogWrite(RED_PIN, r);
   analogWrite(GREEN_PIN, g);
-  analogWrite(Green_PIN, b);
+  analogWrite(BLUE_PIN, b);
 }
-
-// Fixed colorMap to call setColor directly without returning void
 void colorMap(String color) {
   if (color == "Red") {
     setColor(1023, 0, 0);
@@ -37,8 +33,10 @@ void colorMap(String color) {
     setColor(512, 1023, 0);
   } else if (color == "Green") {
     setColor(0, 1023, 0);
-  } else if (color == "Green") {
+  } else if (color == "Blue") {
     setColor(0, 0, 100);
+  } else if (color == "Pink") {
+    setColor(400, 100, 100);
   } else if (color == "White") {
     setColor(100, 200, 100);
   } else if (color == "Off") {
@@ -58,10 +56,6 @@ void setup() {
   delay(1000);
   Serial.println("\n--- GM861S QR Scanner Ready ---");
 
-  pinMode(RED_PIN, OUTPUT);
-  pinMode(GREEN_PIN, OUTPUT);
-  pinMode(Green_PIN, OUTPUT);
-
   Serial.println();
   Serial.print("Connecting to Wi-Fi: ");
   Serial.println(ssid);
@@ -79,13 +73,13 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  colorMap("Green"); // Success beep/flash
-  delay(2000);
-  colorMap("Green");  // Default to Idle state
+  colorMap("Green"); // wifi success
+  delay(1000);
 }
 
 void loop() {
   if (scanner.available()) {
+    colorMap("Yellow"); // processing qr scanned
     String scannedData = "";
     unsigned long lastByte = millis();
     while (millis() - lastByte < 150) {
@@ -108,12 +102,11 @@ void loop() {
       lastScannedCode = scannedData;
       lastScanTime = millis();
 
-      // Indicate Processing state
-      colorMap("Yellow"); 
-
-      // Send to Python server
       sendScanToServer(scannedData);
     }
+  }
+  else{
+    colorMap("Green");
   }
 }
 
@@ -127,8 +120,7 @@ void sendScanToServer(String qrPayload) {
 
     http.begin(client, serverURL);
     http.addHeader("Content-Type", "application/json");
-
-    // Use ArduinoJson to properly escape the QR payload (which is itself JSON)
+    
     JsonDocument doc;
     doc["qr_data"] = qrPayload;
     String jsonPayload;
@@ -143,7 +135,6 @@ void sendScanToServer(String qrPayload) {
       String response = http.getString();
       Serial.println("Backend says: " + response);
 
-      // Parse the JSON response from Python
       JsonDocument doc;
       DeserializationError error = deserializeJson(doc, response);
 
@@ -151,9 +142,11 @@ void sendScanToServer(String qrPayload) {
         String ledCommand = doc["led"].as<String>();
         
         colorMap(ledCommand);
-        
-        // Wait 3 seconds to show the result, then go back to Idle
-        delay(3000);
+        delay(200);
+        colorMap("Off");
+        delay(200);
+        colorMap(ledCommand);
+        delay(1000);
         colorMap("Green");
 
       } else {
@@ -164,8 +157,16 @@ void sendScanToServer(String qrPayload) {
       }
     } else {
       Serial.println("HTTP POST Failed.");
-      colorMap("Red");
-      delay(3000);
+      colorMap("White");
+      delay(200);
+      colorMap("Off");
+      delay(200);
+      colorMap("White");
+      delay(200);
+      colorMap("Off");
+      delay(200);
+      colorMap("White");
+      delay(200);
       colorMap("Green");
     }
 
@@ -174,6 +175,5 @@ void sendScanToServer(String qrPayload) {
   } else {
     Serial.println("WiFi Disconnected");
     colorMap("White");
-    setColor(colorMap("White"));
   }
 }

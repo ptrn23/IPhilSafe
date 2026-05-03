@@ -1,0 +1,10 @@
+[Interface]
+PrivateKey = IOOWuiyT/ZwMFD20X/l17TMdjTCQQOrCAK17AUmpLn0=
+ListenPort = 51820
+Address = 10.13.13.21/32
+
+[Peer]
+PublicKey = rOgSIUmgJ9nKULtJgol4npSa9dCWLCtKDXy17XdDNgM=
+PresharedKey = 7bRSxzeFkC/gyb9LfPhUTP37FScqpR62X2mdZciX6MM=
+AllowedIPs = 172.31.0.0/16
+Endpoint = 65.2.145.177:51820

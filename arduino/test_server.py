@@ -26,7 +26,7 @@ def verify_scan():
         
         response_payload = {
             "status": "authorized",
-            "led": "Green"
+            "led": "Blue"
         }
         return jsonify(response_payload), 200 # 200 OK
         

@@ -16,7 +16,7 @@ void loop() {
   setColor(1023, 50, 0);      // Orange 
   delay(1000);
 
-  setColor(512, 1023, 0);     // Yellow 
+  setColor(700, 400, 0);     // Yellow 
   delay(1000);
   
   setColor(0, 1023, 0);       // Green 
@@ -26,6 +26,9 @@ void loop() {
   delay(1000);
   
   setColor(100, 200, 100);    // White 
+  delay(1000);
+
+  setColor(400,100,100);        // Pink
   delay(1000);
 }
 // Helper function to easily set colors

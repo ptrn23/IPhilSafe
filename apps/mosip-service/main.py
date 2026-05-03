@@ -15,7 +15,7 @@ from pydantic import BaseModel
 '''
 INSTRUCTIONS TO RUN LOCALLY:
 1. turn on WireGuard tunnel
-2. activate .venv (source .venv/bin/activate)
+2. activate .venv (source .venv/bin/activate (MAC/Linux) or .venv\Scripts\activate (Windows)
 3. uvicorn main:app --host 0.0.0.0 --port 8000
 '''
 
@@ -84,20 +84,18 @@ def parse_qr(raw: str) -> dict:
     except json.JSONDecodeError as e:
         raise ValueError(f"QR payload is not valid JSON: {e}") from e
 
-    subject = data.get("subject", {})
-
-    uin = subject.get("UIN") or subject.get("uin")
-    raw_dob = subject.get("DOB") or subject.get("dob")
-    fname = subject.get("fName") or subject.get("firstName") or ""
-    lname = subject.get("lName") or subject.get("lastName") or ""
-    name = f"{fname} {lname}".strip() or None
+    uin = data.get("UIN") or data.get("uin")
+    dob = data.get("DOB") or data.get("dob")
+    fname = data.get("fName") or data.get("firstName") or ""
+    lname = data.get("lName") or data.get("lastName") or ""
+    name = data.get("name") or f"{fname} {lname}".strip() or None
 
     if not uin:
-        raise ValueError(f"QR subject missing UIN. subject keys: {list(subject.keys())}")
-    if not raw_dob:
-        raise ValueError(f"QR subject missing DOB. subject keys: {list(subject.keys())}")
+        raise ValueError(f"QR data missing UIN. data keys: {list(data.keys())}")
+    if not dob:
+        raise ValueError(f"QR data missing DOB. data keys: {list(data.keys())}")
 
-    return {"uin": str(uin), "dob": parse_dob(raw_dob), "name": name}
+    return {"uin": str(uin), "dob": dob, "name": name}
 
 # API endpoints
 @app.post("/api/verify", response_model=ScanResponse)
@@ -131,7 +129,10 @@ async def verify(body: ScanRequest):
         return ScanResponse(status="error", led="Red", uin=uin, name=name, message=str(e))
 
     status = "verified" if verified else "rejected"
-    led = "Green"    if verified else "Red"
+    led = "Blue"    if verified else "Red"
+
+    logger.info(f"Verification result for UIN {uin}: {status.upper()}")
+    logger.info(f"Arduino LED command: {led}")
 
     if verified:
         save_verified_user(uin, name or "")
