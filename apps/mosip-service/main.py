@@ -12,10 +12,23 @@ from mosip_auth_sdk import MOSIPAuthenticator
 from mosip_auth_sdk.models import DemographicsModel
 from pydantic import BaseModel
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Allow local frontend to connect with local backend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # In production, replace "*" with your Vercel URL
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 '''
 INSTRUCTIONS TO RUN LOCALLY:
 1. turn on WireGuard tunnel
-2. activate .venv (source .venv/bin/activate (MAC/Linux) or .venv\Scripts\activate (Windows)
+2. activate .venv (source .venv/bin/activate)
 3. uvicorn main:app --host 0.0.0.0 --port 8000
 '''
 
@@ -52,31 +65,44 @@ class ScanResponse(BaseModel):
     message: str | None = None
 
 # inserts a verified user into the user table in db
-def save_verified_user(uin: str, name: str) -> None:
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        try:
-            with conn:                        # auto-commit on success, rollback on exception
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """
-                        INSERT INTO "user" (uin_philsys, first_name, user_role)
-                        VALUES (%s, %s, 'User')
-                        ON CONFLICT (uin_philsys) DO NOTHING
-                        """,
-                        (int(uin), name[:100]),   # cast UIN to int; truncate name to VarChar(100)
-                    )
-        finally:
-            conn.close()
-    except Exception as e:
-        logger.error(f"user table write failed: {e}")
+# def save_verified_user(uin: str, name: str) -> None:
+    # try:
+    #     conn = psycopg2.connect(DATABASE_URL)
+    #     try:
+    #         with conn:                        # auto-commit on success, rollback on exception
+    #             with conn.cursor() as cur:
+    #                 cur.execute(
+    #                     """
+    #                     INSERT INTO "user" (uin_philsys, name, user_role)
+    #                     VALUES (%s, %s, 'User')
+    #                     ON CONFLICT (uin_philsys) DO NOTHING
+    #                     """,
+    #                     (int(uin), name[:100]),   # cast UIN to int; truncate name to VarChar(100)
+    #                 )
+    #     finally:
+    #         conn.close()
+    # except Exception as e:
+    #     logger.error(f"user table write failed: {e}")
 
 def parse_dob(raw_dob: str) -> str:
-    """Convert 'July 14, 1986' → '1986/07/14' as expected by MOSIP."""
+    """Convert 'July 14, 1986' → '1986/07/14', or return as-is if already in 'YYYY/MM/DD'."""
+    clean_dob = raw_dob.strip()
+
+    # 1. First check: MOSIP format (YYYY/MM/DD)
     try:
-        return datetime.strptime(raw_dob.strip(), "%B %d, %Y").strftime("%Y/%m/%d")
+        datetime.strptime(clean_dob, "%Y/%m/%d")
+        return clean_dob  # It's valid, return it exactly as is
+    except ValueError:
+        pass # Not in YYYY/MM/DD format, move to the next check
+
+    # 2. Second check: Spelled-out format
+    try:
+        return datetime.strptime(clean_dob, "%B %d, %Y").strftime("%Y/%m/%d")
     except ValueError as e:
-        raise ValueError(f"Unrecognised DOB format {raw_dob!r} (expected e.g. 'July 14, 1986')") from e
+        raise ValueError(
+            f"Unrecognised DOB format {raw_dob!r}. "
+            "Expected either 'YYYY/MM/DD' or 'July 14, 1986'."
+        ) from e
 
 def parse_qr(raw: str) -> dict:
     try:
@@ -84,18 +110,20 @@ def parse_qr(raw: str) -> dict:
     except json.JSONDecodeError as e:
         raise ValueError(f"QR payload is not valid JSON: {e}") from e
 
-    uin = data.get("UIN") or data.get("uin")
-    dob = data.get("DOB") or data.get("dob")
-    fname = data.get("fName") or data.get("firstName") or ""
-    lname = data.get("lName") or data.get("lastName") or ""
-    name = data.get("name") or f"{fname} {lname}".strip() or None
+    subject = data.get("subject", data)
+
+    uin = subject.get("UIN") or subject.get("uin")
+    raw_dob = subject.get("DOB") or subject.get("dob")
+    fname = subject.get("fName") or subject.get("firstName") or ""
+    lname = subject.get("lName") or subject.get("lastName") or ""
+    name = f"{fname} {lname}".strip() or None
 
     if not uin:
-        raise ValueError(f"QR data missing UIN. data keys: {list(data.keys())}")
-    if not dob:
-        raise ValueError(f"QR data missing DOB. data keys: {list(data.keys())}")
+        raise ValueError(f"QR data missing UIN. subject keys: {list(subject.keys())}")
+    if not raw_dob:
+        raise ValueError(f"QR data missing DOB. subject keys: {list(subject.keys())}")
 
-    return {"uin": str(uin), "dob": dob, "name": name}
+    return {"uin": str(uin), "dob": parse_dob(raw_dob), "name": name}
 
 # API endpoints
 @app.post("/api/verify", response_model=ScanResponse)
@@ -133,8 +161,8 @@ async def verify(body: ScanRequest):
 
     logger.info(f"Verification result for UIN {uin}: {status.upper()}")
     logger.info(f"Arduino LED command: {led}")
-
-    if verified:
-        save_verified_user(uin, name or "")
+    
+    # if verified:
+    #     save_verified_user(uin, name or "")
 
     return ScanResponse(status=status, led=led, uin=uin, name=name)
