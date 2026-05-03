@@ -5,20 +5,29 @@ export async function get_locker_state(l: Locker | null){
     return null;
   }
   
-  const last_log = await prisma.auditLog.findFirst({
-  where: { lockerId: l.lockerId },
-  orderBy: { createdAt: 'desc' },
-  select: { sysType: true } // Avoid BigInt logId crash
-  })
+  const [last_log, isOccupied] = await Promise.all([
+    prisma.auditLog.findFirst({
+      where: { lockerId: l.lockerId },
+      orderBy: { createdAt: 'desc' },
+      select: { sysType: true } // Avoid BigInt logId crash
+    }),
+    prisma.userLocker.findMany({
+      where: {
+        lockerId: l.lockerId
+      }
+    })
+  ])
+  
   // 4. Logic State
   let state = "IDLE";
   if (last_log?.sysType === 'Tampered') {
     state = "TAMPERED";
   } else if (last_log?.sysType === 'Registering' || last_log?.sysType === 'Added_user') {
     state = "REGISTER";
-  } else if (l) {
+  } else if (isOccupied.length != 0) {
     state = "OCCUPIED";
   }
+  console.log("inside isoccuped", isOccupied)
   return state;
 }
 

@@ -28,9 +28,10 @@ export async function POST(
 
     // check if weight is within empty weight assumption
     const w_empty = 10
-    if (!isNaN(w)){
+    if (isNaN(w)){
       return NextResponse.json({ error: `Weight is not a number ${weight}` }, { status: 404 });
     }
+    
     if (w > w_empty){
       return NextResponse.json({ error: `Current weight ${weight}: All belongings haven't been cleared out of locker` }, { status: 404 });
     }

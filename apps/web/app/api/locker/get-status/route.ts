@@ -30,8 +30,7 @@ export async function POST(
     }
 
     // 4. Logic State
-    let state = get_locker_state(locker);
-
+    const state = await get_locker_state(locker);
     return NextResponse.json({ 
       status: state,
       lockerId: l_id 

@@ -26,7 +26,7 @@ export async function POST(
     }
 
     //check if locker is in IDLE state
-    if (await get_locker_state(locker) == "IDLE"){
+    if (await get_locker_state(locker) != "IDLE"){
       return NextResponse.json({ error: "Locker is not in idle state" }, { status: 404 });
     }
 
