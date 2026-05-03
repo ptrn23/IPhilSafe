@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@repo/db';
-import { create_audit_log } from '../../../utils';
+import { create_audit_log, get_locker_state } from '../../../utils';
 export async function POST(
     req: NextRequest,
     { params }: { params: Promise<{locker_id: string }> }
@@ -25,6 +25,11 @@ export async function POST(
 
     if (!locker){
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
+    }
+
+    //check if locker is in IDLE state
+    if (await get_locker_state(locker) == "IDLE"){
+      return NextResponse.json({ error: "Locker is not in idle state" }, { status: 404 });
     }
 
     // check if already in registering period
