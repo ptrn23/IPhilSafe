@@ -80,7 +80,11 @@ export default function Dashboard() {
   };
 
   const addUser = async () => {
-    const qrdata = JSON.stringify({ subject: { uin: 392943, fname: "John" } });
+    const qrdata = JSON.stringify({ subject: {
+      uin: "4104961936",
+      dob: "2004/02/17", //  check format
+      name: "Cellin Louise Cheng"
+    } });
     const lockerid = 2
     const res = await fetch(`/api/locker/add-user`, {
       method: "POST",
@@ -114,11 +118,16 @@ export default function Dashboard() {
   }; 
 
   const openLocker = async () => {
-    const userId = 392943
+    const payload = { subject: {
+      uin: "4104961936",
+      dob: "2004/02/17", //  check format
+      name: "Cellin Louise Cheng"
+    } };
+    const qrdata = JSON.stringify(payload);
     const lockerid = 2 
-    const res = await fetch(`/api/locker/open-locker/${userId}/${lockerid}`, { method: "POST" });
+    const res = await fetch(`/api/locker/open-locker/${payload.subject.uin}/${lockerid}`, { method: "POST" });
     const data = await res.json();
-    console.log(`🔒| open locker ${lockerid} for user ${userId} :`, data);
+    console.log(`🔒| open locker ${lockerid} for user ${payload.subject.uin} :`, data);
   }; 
 
   const startRegistration = async () => {
