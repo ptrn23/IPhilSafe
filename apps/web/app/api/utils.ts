@@ -10,13 +10,13 @@ export async function get_locker_state(l: Locker | null){
       where: { 
         lockerId: l.lockerId,
         sysType: {
-          in: ["Registration_Started", "Registration_Finished"]
+          in: ["Registration_Started", "Registration_Finished", "Tampered", "Revoke_Access"]
         },
       },
       orderBy: { createdAt: 'desc' },
       select: { sysType: true } // Avoid BigInt logId crash
     }),
-    prisma.userLocker.findMany({
+    prisma.userLocker.findFirst({
       where: {
         lockerId: l.lockerId
       }
@@ -25,14 +25,15 @@ export async function get_locker_state(l: Locker | null){
   
   // 4. Logic State
   let state = "IDLE";
-  if (last_log?.sysType === 'Tampered') {
+  if (!isOccupied && last_log?.sysType != 'Registration_Started'){
+    state = "IDLE";
+  } else  if (last_log?.sysType === 'Tampered') {
     state = "TAMPERED";
   } else if (last_log?.sysType === 'Registration_Started') {
     state = "REGISTER";
-  } else if (isOccupied.length != 0) {
+  } else if (isOccupied) {
     state = "OCCUPIED";
   }
-  console.log("inside isoccuped", isOccupied)
   return state;
 }
 export async function isLockerClosed(l: Locker | null){
