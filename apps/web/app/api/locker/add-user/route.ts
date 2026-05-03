@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest} from 'next/server';
 import { prisma } from '@repo/db';
-import { create_audit_log } from '../../utils';
+import { create_audit_log, verifyWithMOSIP } from '../../utils';
 export async function POST(
     req: NextRequest
 ) {
@@ -11,9 +11,15 @@ export async function POST(
       return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
     }
     const user_data = JSON.parse(qrData);
-    const uin = user_data.subject.uin
-    const first_name = user_data.subject.fname
-    const l_id = parseInt(locker_id, 10)
+    const uin = user_data.subject.uin;
+    const name = user_data.subject.name;
+    const l_id = Number(locker_id);
+
+    // MOSIP verification
+    const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data.subject));
+    if (mosipResult.status !== "verified") {
+      return NextResponse.json({ error: `MOSIP verification failed: ${mosipResult.message || "Unknown error"}` }, { status: 401 });
+    }
 
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
@@ -32,7 +38,7 @@ export async function POST(
       user = await prisma.user.create({
         data: { 
           uinPhilsys: uin, 
-          firstName: first_name, 
+          name: name, 
           userRole: "User" }
       });
     }
@@ -48,7 +54,7 @@ export async function POST(
 
     const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
 
-    if (latestRegLog && latestRegLog.createdAt && latestRegLog.createdAt > fiveMinutesAgo){
+    if (latestRegLog?.createdAt && latestRegLog.createdAt > fiveMinutesAgo){
       return NextResponse.json({ error: `Past Registration period or registration hasn't started` }, { status: 404 });
     }
 
@@ -60,7 +66,7 @@ export async function POST(
       }
     })
     if (isAdded){
-      return NextResponse.json({ error: `User ${first_name} with uin ${uin} is already a user for locker ${l_id}` }, { status: 404 });
+      return NextResponse.json({ error: `User ${name} with uin ${uin} is already a user for locker ${l_id}` }, { status: 404 });
     }
 
     // add user to locker
@@ -73,7 +79,7 @@ export async function POST(
     // create log
     create_audit_log(l_id, 'Added_user', "New user added", uin);
     
-    return NextResponse.json({ message: `user, ${first_name} with uin ${uin}, has been added as user to locker ${l_id}`});
+    return NextResponse.json({ message: `user, ${name} with uin ${uin}, has been added as user to locker ${l_id}`});
   } catch (e) {
     console.error(e);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
