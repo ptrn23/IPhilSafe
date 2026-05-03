@@ -118,16 +118,19 @@ export default function Dashboard() {
   }; 
 
   const openLocker = async () => {
-    const payload = { subject: {
+    const qrdata = JSON.stringify({ subject: {
       uin: "4104961936",
       dob: "2004/02/17", //  check format
       name: "Cellin Louise Cheng"
-    } };
-    const qrdata = JSON.stringify(payload);
-    const lockerid = 2 
-    const res = await fetch(`/api/locker/open-locker/${payload.subject.uin}/${lockerid}`, { method: "POST" });
+    } });
+    const lockerid = 2
+    const res = await fetch(`/api/locker/open-locker`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+    });
     const data = await res.json();
-    console.log(`🔒| open locker ${lockerid} for user ${payload.subject.uin} :`, data);
+    console.log(`🔒| open locker ${lockerid} for user ${JSON.parse(qrdata).subject.uin} :`, data);
   }; 
 
   const startRegistration = async () => {
