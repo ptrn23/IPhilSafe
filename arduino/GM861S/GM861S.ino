@@ -8,39 +8,70 @@
 #define WIFI_PASSWORD "jihyodorant"
 #define SERVER_URL "https://iphilsafe.vercel.app/" 
 
-#define RED_PIN     D1
-#define GREEN_PIN   D2
-#define BLUE_PIN    D3
+#define RED_PIN           D10
+#define GREEN_PIN         D2
+#define BLUE_PIN          D3
 
-#define SCANNER_RX  D5
-#define SCANNER_TX  D6
+#define HX711_DT_PIN      D4
+#define HX711_SCK_PIN     D0
+
+#define SCANNER_RX        D5
+#define SCANNER_TX        D6
+
+#define LOCK_PIN          D1
+#define DOOR_SENSOR_PIN   D7
+#define BUTTON_PIN        D9
+
+String currentState = "IDLE";
+String currentColor = "Green";
+
+int currentWeight = 0;
+int lastDoorState = HIGH;
+
+const int locker_id = 1;
+
+unsigned long lastWeightCheck = 0;
+const unsigned long weightCheckInterval = 10000; // check weight every 10 seconds
 
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
 const char* serverURL = SERVER_URL;
 
-void setColor(int r, int g, int b) {
+void writeRGB(int r, int g, int b) {
   analogWrite(RED_PIN, r);
   analogWrite(GREEN_PIN, g);
   analogWrite(BLUE_PIN, b);
 }
-void colorMap(String color) {
+void setColor(String color) {
   if (color == "Red") {
-    setColor(1023, 0, 0);
+    writeRGB(1023, 0, 0);
   } else if (color == "Orange") {
-    setColor(1023, 50, 0);
+    writeRGB(1023, 50, 0);
   } else if (color == "Yellow") {
-    setColor(512, 1023, 0);
+    writeRGB(512, 1023, 0);
   } else if (color == "Green") {
-    setColor(0, 1023, 0);
+    writeRGB(0, 1023, 0);
   } else if (color == "Blue") {
-    setColor(0, 0, 100);
+    writeRGB(0, 0, 100);
   } else if (color == "Pink") {
-    setColor(400, 100, 100);
+    writeRGB(400, 100, 100);
+  } else if (color == "Cyan") {
+    writeRGB(0, 500, 70);
   } else if (color == "White") {
-    setColor(100, 200, 100);
+    writeRGB(100, 200, 100);
   } else if (color == "Off") {
-    setColor(0, 0, 0);
+    writeRGB(0, 0, 0);
+  } else {
+    writeRGB(400, 100, 100); // default to pink for unknown colors
+  }
+}
+
+void flashColor(String color, int times, int delayTime) {
+  for (int i = 0; i < times; i++) {
+    setColor(color);
+    delay(delayTime);
+    setColor("Off");
+    delay(delayTime);
   }
 }
 
@@ -50,36 +81,56 @@ String lastScannedCode = "";
 unsigned long lastScanTime = 0;
 const unsigned long duplicateTimeout = 5000;
 
+void connectToWiFi() {
+  WiFi.begin(ssid, password);
+
+  while (WiFi.status() != WL_CONNECTED) {
+    setColor("White"); 
+    delay(500);
+    setColor("Off");
+    delay(500);
+  }
+
+  flashColor("Green", 3, 200); // wifi success
+  setColor(currentColor);
+}
+
 void setup() {
   Serial.begin(115200);
   scanner.begin(9600); 
   delay(1000);
-  Serial.println("\n--- GM861S QR Scanner Ready ---");
-
-  Serial.println();
-  Serial.print("Connecting to Wi-Fi: ");
-  Serial.println(ssid);
   WiFi.begin(ssid, password);
+  connectToWiFi();
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-    colorMap("White"); 
-    delay(500);
-    colorMap("Off");   
-  }
+  digitalWrite(LOCK_PIN, HIGH);
+  pinMode(LOCK_PIN, OUTPUT);
+  pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
+  pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-  Serial.println("\nWiFi connected!");
-  Serial.print("IP address: ");
-  Serial.println(WiFi.localIP());
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  pinMode(BLUE_PIN, OUTPUT);
 
-  colorMap("Green"); // wifi success
-  delay(1000);
+  // reset locker state on startup
 }
 
-void loop() {
+void statusToLED(String status) {
+  if (status == "IDLE") {
+    return "Green";
+  } else if (status == "OCCUPIED") {
+    return "Blue";
+  } else if (status == "REGISTER") {
+    return "Yellow";
+  } else if (status == "TAMPERED") {
+    return "Red";
+  } else {
+    return "Pink"; // default unknown status color
+  }
+}
+
+void checkScanner() {
   if (scanner.available()) {
-    colorMap("Yellow"); // processing qr scanned
+    setColor("Cyan"); // qr processing color
     String scannedData = "";
     unsigned long lastByte = millis();
     while (millis() - lastByte < 150) {
@@ -94,86 +145,223 @@ void loop() {
 
     if (scannedData.length() > 0) {
       if (scannedData == lastScannedCode && (millis() - lastScanTime < duplicateTimeout)) {
-        Serial.println("Duplicate scan ignored.");
-        return; 
+        setColor(currentColor);
+        return ""; // ignore duplicate scan
       }
-
-      Serial.println("QR Scanned: " + scannedData);
       lastScannedCode = scannedData;
       lastScanTime = millis();
-
-      sendScanToServer(scannedData);
+      return scannedData;
     }
   }
-  else{
-    colorMap("Green");
+  setColor(currentColor);
+  return "";
+}
+
+String sendApiRequest(String endpoint, String payload) { // master api request function
+  if (WiFi.status() != WL_CONNECTED) {
+    connectToWiFi();
+  }
+
+  WiFiClientSecure client;
+  client.setInsecure();
+  HTTPClient http;
+
+  String fullUrl = String(serverURL) + endpoint;
+  http.begin(client, fullUrl);
+  http.addHeader("Content-Type", "application/json");
+
+  int httpResponseCode = http.POST(payload);
+  String response = "";
+
+  if (httpResponseCode == 200) {
+    response = http.getString();
+  } else if (httpResponseCode > 0) {
+    flashColor("Red", 2, 300); // server error (4xx/5xx)
+    setColor(currentColor);
+  } else {
+    flashColor("White", 2, 300); // network error
+    setColor(currentColor);
+  }
+  
+  http.end();
+  return response; // return http response 
+}
+
+void createJSONPayload(String qr_data = "") {
+  JsonDocument doc;
+  doc["locker_id"] = locker_id;
+  doc["qr_data"] = qr_data;
+  doc["weight"] = currentWeight;
+  String jsonPayload;
+  serializeJson(doc, jsonPayload);
+  return jsonPayload;
+}
+
+String sendGetStatus() {
+  String payload = createJSONPayload();
+  String response = sendApiRequest("api/locker/get-status/", payload);
+
+  if (response != "") {
+    JsonDocument doc;
+    deserializeJson(doc, response);
+    
+    if (!error) {
+        String lockerStatus = doc["status"].as<String>();
+        return lockerStatus;
+    } else {
+      flashColor("Pink", 2, 300); // JSON response error color
+      setColor(currentColor);
+    }
+  }
+  return currentState; // return current state if failed to get status from server
+}
+
+void updateCurrentState() {
+  currentState = sendGetStatus();
+  currentColor = statusToLED(currentState);
+  setColor(currentColor);
+}
+
+void updateWeight() {
+  // Placeholder for future load cell integration
+}
+
+void openLocker() {
+  digitalWrite(LOCK_PIN, LOW); // Unlock
+  delay(500); // Keep unlocked for 0.5 seconds
+  digitalWrite(LOCK_PIN, HIGH); // Lock back
+}
+
+void sendStartRegister() {
+  String payload = createJSONPayload();
+  String response = sendApiRequest("api/locker/start-reg/", payload);
+  
+  if (response != "") {
+    setColor("Yellow"); // register color
   }
 }
 
-void sendScanToServer(String qrPayload) {
-  if (WiFi.status() == WL_CONNECTED) {
-    WiFiClient client;
-    HTTPClient http;
+void sendQRAddUser(String qrPayload) {
+  String payload = createJSONPayload(qrPayload);
+  String response = sendApiRequest("api/locker/add-user/", payload);
 
-    Serial.print("Sending POST request to: ");
-    Serial.println(serverURL);
+  if (response != "") {
+    flashColor("Green", 2, 300); // success color
+    delay(500);
+    setColor(currentColor);
+  }
+}
 
-    http.begin(client, serverURL);
-    http.addHeader("Content-Type", "application/json");
-    
+void sendOpenLocker(String qrPayload) {
+  String payload = createJSONPayload(qrPayload);
+  String response = sendApiRequest("api/locker/open-locker/", payload);
+
+  if (response != "") {
     JsonDocument doc;
-    doc["qr_data"] = qrPayload;
-    String jsonPayload;
-    serializeJson(doc, jsonPayload);
-
-    int httpResponseCode = http.POST(jsonPayload);
-
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-
-    if (httpResponseCode > 0) {
-      String response = http.getString();
-      Serial.println("Backend says: " + response);
-
-      JsonDocument doc;
-      DeserializationError error = deserializeJson(doc, response);
-
-      if (!error) {
-        String ledCommand = doc["led"].as<String>();
-        
-        colorMap(ledCommand);
-        delay(200);
-        colorMap("Off");
-        delay(200);
-        colorMap(ledCommand);
-        delay(1000);
-        colorMap("Green");
-
-      } else {
-        Serial.println("Failed to parse JSON response.");
-        colorMap("Red");
-        delay(3000);
-        colorMap("Green");
-      }
+    deserializeJson(doc, response);
+    
+    if (doc["message"].as<String>() == "Authorized") {
+      flashColor("Green", 2, 300); // Authorized
+      setColor(currentColor);
+      openLocker();
     } else {
-      Serial.println("HTTP POST Failed.");
-      colorMap("White");
-      delay(200);
-      colorMap("Off");
-      delay(200);
-      colorMap("White");
-      delay(200);
-      colorMap("Off");
-      delay(200);
-      colorMap("White");
-      delay(200);
-      colorMap("Green");
+      flashColor("Red", 2, 300); // Denied
+      setColor(currentColor);
+    }
+  }
+}
+
+void sendClosedLocker() {
+  String payload = createJSONPayload();
+  String response = sendApiRequest("api/locker/close-locker/", payload);
+  
+  if (response != "") {
+    flashColor("Blue", 2, 300); // closed locker blink
+    setColor(currentColor);
+  }
+}
+
+void sendUnregister() {
+  setColor("Orange"); // start unregister color
+  String payload = createJSONPayload();
+  String response = sendApiRequest("api/locker/unreg/", payload);
+  
+  if (response != "") {
+    flashColor("Green", 2, 300); // success color
+    setColor(currentColor);
+  }
+}
+
+void sendUpdateWeight() {
+  updateWeight(); // placeholder for future load cell integration
+  String payload = createJSONPayload();
+  String response = sendApiRequest("api/locker/update-weight/", payload);
+  
+  if (response != "") {
+    // weight updated successfully, no need to flash color
+  }
+}
+
+bool isDoorOpen() {
+  int doorState = digitalRead(DOOR_SENSOR_PIN);
+  if (doorState == HIGH) { // door opened
+    return true;
+  }
+  return false;
+}
+
+void loop() {
+  // Periodically check weight every 10 seconds
+  if (millis() - lastWeightCheck >= 10000) {
+    sendUpdateWeight();
+    lastWeightCheck = millis();
+  }
+
+  if (currentState == "IDLE") {
+    String qr_scanned = checkScanner();
+    if (qr_scanned.length() > 0) { // new qr scanned, switch to register mode
+      sendStartRegister();
+      sendQRAddUser(qr_scanned);
+      updateCurrentState(); // expected to switch to REGISTER
+    }
+    if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, switch to register mode
+      sendStartRegister();
+      updateCurrentState();
+      delay(500);
     }
 
-    http.end();
+  } else if (currentState == "REGISTER") {
+    String qr_scanned = checkScanner();
+    if (qr_scanned.length() > 0) { // new qr scanned, try to add user
+      sendQRAddUser(qr_scanned);
+      updateCurrentState();
+    }
+    if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, end register mode
+      sendStartRegister();
+      updateCurrentState();
+      delay(500);
+    }
 
-  } else {
-    Serial.println("WiFi Disconnected");
-    colorMap("White");
+  } else if (currentState == "OCCUPIED") {
+    String qr_scanned = checkScanner();
+    if (qr_scanned.length() > 0) { // new qr scanned, try open locker
+        sendOpenLocker(qr_scanned);
+        updateCurrentState();
+    }
+    if (lastDoorState == HIGH && !isDoorOpen()) { // door just closed
+      sendClosedLocker();
+      updateCurrentState();
+    }
+    if (!isDoorOpen()) { // door closed
+      if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, verify weight, unregister
+        sendUnregister();
+        updateCurrentState();
+        delay(500);
+      }
+    }
+
+  } else if (currentState == "TAMPERED") {
+    setColor("Red"); // forever red until reset
   }
+  lastDoorState = digitalRead(DOOR_SENSOR_PIN);
 }
