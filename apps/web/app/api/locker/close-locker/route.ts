@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@repo/db';
-import { create_audit_log} from '../../utils';
+import { create_audit_log, isLockerClosed} from '../../utils';
 export async function POST(
     req: NextRequest,
 
@@ -21,6 +21,10 @@ export async function POST(
     });
     if (!locker){
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
+    }
+
+    if(await isLockerClosed(locker) ){
+      return NextResponse.json({ error: "Locker already closed" }, { status: 404 });
     }
 
     // Update weight to bypass tamper detection
