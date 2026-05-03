@@ -19,13 +19,29 @@ export async function POST(
       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
     }        
 
+    if (await get_locker_state(locker) != "REGISTER"){
+      return NextResponse.json({ error: "Not in Registration Period" }, { status: 404 });
+    }
+
+    // check if no users added to locker
+    const users = await prisma.userLocker.findFirst({
+        where:{
+            lockerId: l_id
+        }
+    })
+    if (!users){
+      create_audit_log(l_id, 'Registration_Finished', 'Registration Finished')
+      return NextResponse.json({ error: "No users added " }, { status: 404 });
+    }
+
+
     // Sets inital weight of locker
     const result = await prisma.locker.update({
       where: { lockerId: l_id },
       data: { weight: w_new }
     });
 
-    create_audit_log(l_id, 'Registration_Finished', 'User checked out and session cleared')
+    create_audit_log(l_id, 'Registration_Finished', 'Registration Finished')
     create_audit_log(l_id, 'Locker_Opened', 'Lockers is opened after successful registration')
 
     return NextResponse.json({ status: "OCCUPIED" });
