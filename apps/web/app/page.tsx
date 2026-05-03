@@ -1,12 +1,17 @@
-'use client'
+'use client';
 
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import QRScanner from '@/components/QRScanner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"; // <-- NEW IMPORT
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { POST } from "./api/locker/unreg/[locker_id]/route";
 
 type LockerState = 'IDLE' | 'REGISTER' | 'OCCUPIED' | 'UNREGISTER' | 'TAMPERED' | 'SERVER_ERROR';
 
@@ -37,393 +42,95 @@ const getStateColor = (state: LockerState) => {
   }
 };
 
-export default function Dashboard() {
-  const [locker, setLocker] = useState<LockerData>({
-    id: "Locker A",
-    state: "IDLE",
-    currentWeight: 0.00,
-    ownerUINs: [],
-    previousState: 'IDLE',
-  });
+export default function LandingPage() {
+  const router = useRouter();
+  const [devInput, setDevInput] = useState('');
+  const [error, setError] = useState('');
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [pendingUin, setPendingUin] = useState('');
 
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const fetchLockers = async () => {
-    const id = 10101
-    const res = await fetch(`/api/get-lockers/${id}`);
-    const data = await res.json();
+  useEffect(() => {
+    const savedSession = localStorage.getItem('iphilsafe_session');
+    if (savedSession) router.push('/dashboard');
+  }, [router]);
 
-    console.log("🗄️| lockers returned:", data);
-  };
-  const addUser = async () => {
-    const qrdata = JSON.stringify({
-      subject: {
-        uin: 392943,
-        fname: "John",
-      },
-    });
-    const lockerid = 2
-    const res = await fetch(`/api/locker/add-user`, {
-      method: "POST",
-      headers:{
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        qrData: qrdata,
-        locker_id: lockerid,
-      }),
+  const handleInitialScan = async (rawQrString: string) => {
+    setError('');
+    try {
+      const parsed = JSON.parse(rawQrString);
+      const uin = parsed.subject?.UIN || parsed.uin || parsed.qr_data;
+      if (!uin) throw new Error("Invalid QR: No UIN found");
 
-    });
-    const data = await res.json();
+      // 1. DELETE the setShowRoleModal logic below
+      // 2. fetch the user's role from the database
+      // 3. save to session and router.push('/dashboard')
+      
+      // MOCK: Intercept the login and ask for the role
+      setPendingUin(uin);
+      setShowRoleModal(true);
 
-    console.log("🗄️| added lockers:", data);
-  };
-  const fetchAuditLogs = async () => {
-    const id = 10101
-    const res = await fetch(`/api/get-audit-logs/${id}`);
-    const data = await res.json();
-
-    console.log("📑| audit logs returned:", data);
-  };
-
-  const revokeLockerAccess = async () => {
-    const u_id = 10101
-    const l_id = 2
-    const res = await fetch(`/api/locker/revoke-access/${l_id}/${u_id}`, {
-      method: "POST"
-    });
-    const data = await res.json();
-
-    console.log("🚫 | Access for locker revoked :", data);
-  };
-  const getLockerStatus = async () => {
-    const qrdata = JSON.stringify({
-      subject: {
-        uin: 392943,
-        fname: "John",
-      },
-    });
-    const lockerid = 2
-    const res = await fetch(`/api/locker/get-status/${lockerid}`);
-    const data = await res.json();
-    console.log(`🗄️| status of locker ${lockerid} :`, data);
-  }; 
-  const openLocker = async () => {
-    const userId = 392943
-    const lockerid = 2 
-    const res = await fetch(`/api/locker/open-locker/${userId}/${lockerid}`, {
-      method: "POST"
-    });
-    const data = await res.json();
-    console.log(`🔒| open locker ${lockerid} for user ${userId} :`, data);
-  }; 
-  const startRegistration = async () => {
-    const userId = 10101
-    const lockerid = 2
-    const res = await fetch(`/api/locker/start-reg/${lockerid}`, {
-      method: "POST"
-    });
-    const data = await res.json();
-    console.log(`🗄️| start registration for locker ${lockerid}:`, data);
-  }; 
-  const unregisterLocker = async () => {
-    const userId = 10101
-    const lockerid = 2
-    const res = await fetch(`/api/locker/unreg/${lockerid}`, {
-      method: "POST"
-    });
-    const data = await res.json();
-    console.log(`🗄️| unregister locker ${lockerid}:`, data);
-  }; 
-  const updateWeight = async () => {
-    const weight = 100
-    const lockerid = 2
-    const res = await fetch(`/api/locker/update-weight/${lockerid}/${weight}`, {
-      method: "POST"
-    });
-    const data = await res.json();
-    console.log(`🗄️| update weight ${lockerid}:`, data);
-  }; 
-  // --- THE BACKEND ABSTRACTION ENGINE ---
-  const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
-    setLocker(prev => ({ ...prev, ...newLockerState }));
-    
-    const newLog: LogEntry = {
-      id: Math.random().toString(36).substring(2, 9),
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      action: action,
-      details: logDetails,
-    };
-    
-    setLogs(prevLogs => [newLog, ...prevLogs]);
-
-    // TODO: await fetch('/api/hardware-event', { method: 'POST', body: JSON.stringify({ action, newLockerState }) });
-  };
-
-  const generateRandomUIN = () => {
-    return `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-  };
-
-  const generateRandomWeight = () => {
-    return +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
-  };
-
-  const simulateScan = () => {
-    if (locker.state === 'IDLE') {
-      const newUIN = generateRandomUIN();
-      pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: [newUIN] }, `Primary user (${newUIN}) authenticated.`);
-    } else if (locker.state === 'OCCUPIED') {
-      const temporaryWeight = +(locker.currentWeight * 0.4).toFixed(2); 
-      pushHardwareEvent("Access Scan", { currentWeight: temporaryWeight }, "Authorized user scanned ID. Door unlocked for temporary access.");
+    } catch (err) {
+      setError("Invalid QR format. Please try again.");
     }
   };
 
-  const simulateMultiScan = () => {
-    if (locker.state !== 'REGISTER') return;
-    const coUserUIN = generateRandomUIN();
-    pushHardwareEvent("Co-User Scan", { ownerUINs: [...locker.ownerUINs, coUserUIN] }, `Secondary user (${coUserUIN}) appended to session.`);
-  };
-
-  const simulateDeposit = () => {
-    const newWeight = generateRandomWeight();
-    if (locker.state === 'REGISTER') {
-      pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: newWeight }, `Initial baseline mass registered at ${newWeight} kg.`);
-    } else if (locker.state === 'OCCUPIED') {
-      pushHardwareEvent("Door Closed", { currentWeight: newWeight }, `Door closed. New baseline mass registered at ${newWeight} kg.`);
-    }
-  };
-
-  const simulateTheft = () => {
-    pushHardwareEvent("Tamper Detected", { state: 'TAMPERED', currentWeight: 0.00 }, "CRITICAL: Unauthorized mass drop.");
-  };
-
-  const simulateFailedCheckout = () => {
-    pushHardwareEvent("Checkout Denied", { state: 'UNREGISTER', currentWeight: 1.20 }, "User attempted checkout, but items remain inside.");
-  };
-
-  const simulateClearCheckout = () => {
-    pushHardwareEvent("Session Ended", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Compartment verified empty. Ledger cleared.");
-  };
-
-  const simulateNetworkError = () => {
-    if (locker.state === 'SERVER_ERROR') return;
-    pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR', previousState: locker.state }, "Lost connection to MOSIP Testbed.");
-  };
-
-  const simulateNetworkRestore = () => {
-    const targetState = locker.previousState || 'IDLE';
-    pushHardwareEvent("Network Restored", { state: targetState }, `Connection re-established. Resuming ${targetState} phase.`);
-  };
-
-  const simulateAdminOverride = () => {
-    pushHardwareEvent("Admin Override", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Tamper flag cleared by administrator. Locker reset to IDLE.");
+  const finalizeMockLogin = (role: 'ADMIN' | 'USER') => {
+    localStorage.setItem('iphilsafe_session', JSON.stringify({ uin: pendingUin, role }));
+    setShowRoleModal(false);
+    router.push('/dashboard');
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8 font-sans text-slate-900">
-      <header className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">IPhilSafe Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Capstone Project by Team 10</p>
-        </div>
-        <Badge variant="outline" className="bg-white text-green-700 border-green-700">
-          ONLINE
-        </Badge>
-      </header>
-
-      <Separator className="mb-8" />
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-semibold">{locker.id}</CardTitle>
-            <Badge className={getStateColor(locker.state)}>{locker.state}</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end justify-between mt-2">
-              <div className="text-sm text-slate-500">
-                <p>Current Load: <span className="font-mono text-slate-900 font-medium">{locker.currentWeight.toFixed(2)} kg</span></p>
-                <p>Owner UINs: <span className="font-mono text-slate-900">{locker.ownerUINs.length > 0 ? locker.ownerUINs.join(', ') : 'None'}</span></p>
-              </div>
-              
-              {locker.state === 'TAMPERED' && (
-                <Button 
-                  onClick={simulateAdminOverride} 
-                  variant="destructive" 
-                  size="sm"
-                  className="font-bold shadow-sm"
-                >
-                  Clear
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Separator className="mb-8" />
-
-      <div className="mt-8">
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Chain of Custody Logs</h2>
-        <Card className="shadow-sm border-slate-200">
-          <ScrollArea className="h-[250px] rounded-md border-0">
-            <Table>
-              <TableHeader className="bg-slate-100 sticky top-0">
-                <TableRow>
-                  <TableHead className="w-[120px]">Timestamp</TableHead>
-                  <TableHead className="w-[150px]">Action</TableHead>
-                  <TableHead>Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center text-slate-500 py-8">
-                      No events recorded yet. Click a Dev Tool button to simulate hardware.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-mono text-xs text-slate-500">{log.timestamp}</TableCell>
-                      <TableCell className="font-medium text-slate-900">{log.action}</TableCell>
-                      <TableCell className="text-slate-600">{log.details}</TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </Card>
-      </div>
-
-      <div className="mt-16 p-6 border border-slate-200 rounded-xl bg-white shadow-sm">
-        <div className="mb-4">
-          <h2 className="text-lg font-bold text-slate-900">DEV TOOLS HERE!</h2>
-          <p className="text-sm text-slate-500">For simulation purposes for now</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <Card className="w-full max-w-lg shadow-xl">
+        <CardHeader className="text-center space-y-2">
+          <CardTitle className="text-4xl font-extrabold tracking-tight">IPhilSafe</CardTitle>
+          <CardDescription className="text-lg">Scan your PhilSys National ID to enter.</CardDescription>
+        </CardHeader>
         
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <Button 
-            onClick={simulateScan} 
-            disabled={locker.state !== 'IDLE' && locker.state !== 'OCCUPIED'}
-            variant="outline" className="border-blue-200 text-blue-700 disabled:opacity-50">
-            1. Scan ID
-          </Button>
-          
-          <Button 
-            onClick={simulateMultiScan} 
-            disabled={locker.state !== 'REGISTER'}
-            variant="outline" className="border-yellow-200 text-yellow-700 disabled:opacity-50">
-            1.5 Co-User Scan
-          </Button>
-          
-          <Button 
-            onClick={simulateDeposit} 
-            disabled={locker.state !== 'REGISTER' && locker.state !== 'OCCUPIED'}
-            variant="outline" className="border-green-200 text-green-700 disabled:opacity-50">
-            2. Close Door
-          </Button>
-          
-          <Button 
-            onClick={simulateTheft} 
-            disabled={locker.state !== 'OCCUPIED'}
-            variant="outline" className="border-red-200 text-red-700 border-2 disabled:opacity-50">
-            ! Force Theft
-          </Button>
-          
-          <Button 
-            onClick={simulateFailedCheckout} 
-            disabled={locker.state !== 'OCCUPIED'}
-            variant="outline" className="border-orange-200 text-orange-700 disabled:opacity-50">
-            ? Failed Checkout
-          </Button>
-          
-          <Button 
-            onClick={simulateClearCheckout} 
-            disabled={locker.state !== 'OCCUPIED' && locker.state !== 'UNREGISTER'}
-            variant="outline" className="border-slate-300 disabled:opacity-50">
-            3. Valid Checkout
-          </Button>
-          
-          <Button 
-            onClick={simulateNetworkError} 
-            disabled={locker.state === 'SERVER_ERROR'}
-            variant="outline" className="border-slate-800 text-slate-800">
-            X Network Drop
-          </Button>
+        <CardContent className="space-y-8">
+          <QRScanner onScanSuccess={handleInitialScan} />
 
-          <Button
-            onClick={simulateNetworkRestore}
-            disabled={locker.state !== 'SERVER_ERROR'}
-            variant="outline" className="border-slate-300 disabled:opacity-50">
-            O Network Restore
-          </Button>
-        </div>
-      </div>
-      <Button
-        onClick={fetchLockers}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        Fetch Lockers (API Test)
-      </Button>
-      <Button
-        onClick={addUser}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        Add user (API Test)
-      </Button>
-      <Button
-        onClick={revokeLockerAccess}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        revoke locker access (API Test)
-      </Button>
-      <Button
-        onClick={getLockerStatus}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        get locker status (API Test)
-      </Button>
-      <Button
-        onClick={openLocker}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        Open locker (API Test)
-      </Button>
-      <Button
-        onClick={startRegistration}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        start registration period (API Test)
-      </Button>
-      <Button
-        onClick={unregisterLocker}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        unregister locker (API Test)
-      </Button>
-      <Button
-        onClick={updateWeight}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        update weight (API Test)
-      </Button>
-      <Button
-        onClick={fetchAuditLogs}
-        variant="outline"
-        className="border-indigo-200 text-indigo-700"
-      >
-        fetch audit logs (API Test)
-      </Button>
-      
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+            <div className="relative flex justify-center text-xs uppercase"><span className="bg-white px-2 text-muted-foreground">Or</span></div>
+          </div>
+
+          <div className="space-y-3 bg-slate-100 p-4 rounded-xl border border-slate-200">
+            <p className="text-xs font-bold text-slate-500 uppercase">Developer Bypass</p>
+            <Input 
+              placeholder='Paste JSON String here (e.g. {"uin": "1234-5678"})' 
+              value={devInput}
+              onChange={(e) => setDevInput(e.target.value)}
+              className="font-mono text-xs"
+            />
+            <Button variant="secondary" className="w-full" onClick={() => handleInitialScan(devInput)}>
+              Simulate Scan
+            </Button>
+          </div>
+
+          {error && <p className="text-red-500 text-sm font-medium text-center bg-red-50 p-2 rounded-md">{error}</p>}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showRoleModal} onOpenChange={setShowRoleModal}>
+        <DialogContent className="sm:max-w-md bg-white p-6">
+          <DialogHeader>
+            <DialogTitle>MOCK LOG IN</DialogTitle>
+            <DialogDescription>
+              Select how you want to log in as UIN: <span className="font-mono font-bold text-black">{pendingUin}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 mt-4">
+            <Button onClick={() => finalizeMockLogin('ADMIN')} className="w-full bg-slate-900 text-white hover:bg-slate-800">
+              Log in as ADMIN
+            </Button>
+            <Button onClick={() => finalizeMockLogin('USER')} variant="outline" className="w-full">
+              Log in as USER
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
-  )
+  );
 }
