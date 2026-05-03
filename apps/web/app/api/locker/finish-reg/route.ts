@@ -1,0 +1,37 @@
+import { prisma } from '@repo/db';
+import { NextResponse, NextRequest } from 'next/server';
+import { create_audit_log, get_locker_state, isLockerClosed } from '../../utils';
+export async function POST(
+    req: NextRequest) {
+  try {
+    const { locker_id, weight } = await req.json()
+    const l_id = parseInt(locker_id, 10)
+    const w_new = parseInt(weight, 10)
+    if (!locker_id) {
+      return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
+    }
+
+    // Check if locker exists
+    const locker = await prisma.locker.findUnique({
+      where: { lockerId: l_id }
+    });
+    if (!locker){
+      return NextResponse.json({ error: "Locker not found" }, { status: 404 });
+    }        
+
+    // Sets inital weight of locker
+    const result = await prisma.locker.update({
+      where: { lockerId: l_id },
+      data: { weight: w_new }
+    });
+
+    create_audit_log(l_id, 'Registration_Finished', 'User checked out and session cleared')
+    create_audit_log(l_id, 'Locker_Opened', 'Lockers is opened after successful registration')
+
+    return NextResponse.json({ status: "OCCUPIED" });
+
+  } catch (error) {
+    console.error("Checkout Error:", error);
+    return NextResponse.json({ error: "Failed to checkout" }, { status: 500 });
+  }
+}
