@@ -15,11 +15,11 @@ export async function POST(
     const name = user_data.subject.name;
     const l_id = Number(locker_id);
 
-    // MOSIP verification
-    const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data.subject));
-    if (mosipResult.status !== "verified") {
-      return NextResponse.json({ error: `MOSIP verification failed: ${mosipResult.message || "Unknown error"}` }, { status: 401 });
-    }
+    // // MOSIP verification
+    // const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data.subject));
+    // if (mosipResult.status !== "verified") {
+    //   return NextResponse.json({ error: `MOSIP verification failed: ${mosipResult.message || "Unknown error"}` }, { status: 401 });
+    // }
 
     // check if user and locker exists
     const user = await prisma.user.findUnique({
