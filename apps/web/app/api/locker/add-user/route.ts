@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest} from 'next/server';
 import { prisma } from '@repo/db';
-import { create_audit_log, verifyWithMOSIP } from '../../utils';
+import { create_audit_log, get_locker_state, verifyWithMOSIP } from '../../utils';
 export async function POST(
     req: NextRequest
 ) {
@@ -44,19 +44,9 @@ export async function POST(
     }
 
     const minTimeout = 2;
-    // check if in registering period
-    const latestRegLog = await prisma.auditLog.findFirst({
-      where: {
-        lockerId: l_id, 
-        sysType: "Registering",
-        createdAt: {
-          gte: new Date(Date.now() - minTimeout * 60 * 1000)
-        }
-      },
-      orderBy: {createdAt: "desc"},
-    })
+    
 
-    if (!latestRegLog){
+    if (await get_locker_state(locker) != "REGISTER"){
       return NextResponse.json({ error: `Past Registration period or registration hasn't started` }, { status: 404 });
     }
 

@@ -31,22 +31,12 @@ export async function POST(
     }
 
     // check if already in registering period
-    const latestRegLog = await prisma.auditLog.findFirst({
-      where: {
-        lockerId: l_id, 
-        sysType: "Registering"
-      },
-      orderBy: {createdAt: "desc"},
-    })
-
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
-    if (latestRegLog && latestRegLog.createdAt && latestRegLog.createdAt >= fiveMinutesAgo){
+    if(await get_locker_state(locker) == "REGISTER"){
       return NextResponse.json({ error: `Registration period has already started` }, { status: 404 });
     }
 
     // if not, create log
-    create_audit_log(l_id, 'Registering', "Registration period started")
+    create_audit_log(l_id, 'Registration_Started', "Registration period started")
 
     return NextResponse.json({ message: "Regsitration start", lockerId: locker.lockerId }, { status: 201 });
   } catch (error) {
