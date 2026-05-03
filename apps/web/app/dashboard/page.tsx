@@ -88,7 +88,7 @@ export default function Dashboard() {
     const res = await fetch(`/api/locker/add-user`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ qrData: qrdata, locker_id: String(lockerid) }),
+      body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
     });
     const data = await res.json();
     console.log("🗄️| added lockers:", data);

@@ -1,6 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { prisma } from '@repo/db';
-import { create_audit_log, verifyWithMOSIP } from '../../utils';
+import { create_audit_log, get_locker_state, verifyWithMOSIP } from '../../utils';
 export async function POST(
     req: NextRequest,
 ) {
@@ -49,10 +49,13 @@ export async function POST(
       create_audit_log(l_id, 'Locker_Opened', "Locker opened by user", uin )      
       return NextResponse.json({ message: "Authorized", name: user.name });
     }
-    else{
+    else if (await get_locker_state(locker) == "OCCUPIED"){
       console.log("denied locker")
       create_audit_log(l_id, 'Denied_Access', "Locker denied access to user", uin )      
       return NextResponse.json({ message: "Denied", name: user.name });
+    }
+    else{
+      return NextResponse.json({ error: "Locker is not occupied" }, { status: 404 });
     }
   } catch (e) {
     console.error(e);
