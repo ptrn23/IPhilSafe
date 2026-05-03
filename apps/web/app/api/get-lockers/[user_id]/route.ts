@@ -12,13 +12,12 @@ export async function GET(
     if (!user_id) {
       return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });
     }
-    const u_id = parseInt(user_id, 10)
 
-    console.log("Locker data accessed by user:", u_id);
+    console.log("Locker data accessed by user:", user_id);
 
     // check if user in database
     const user = await prisma.user.findFirst({
-      where: { uinPhilsys: u_id }
+      where: { uinPhilsys: user_id }
     });
 
     if (user === undefined || user === null) {

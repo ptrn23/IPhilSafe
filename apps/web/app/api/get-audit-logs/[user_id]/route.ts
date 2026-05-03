@@ -11,17 +11,16 @@ export async function GET(
     if (!user_id) {
       return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });
     }
-    const u_id = parseInt(user_id, 10)
 
-    console.log("Audit logs accessed by user:", u_id);
+    console.log("Audit logs accessed by user:", user_id);
 
     const user = await prisma.user.findFirst({
-      where: { uinPhilsys: u_id }
+      where: { uinPhilsys: user_id }
     });
 
     // check if user exists
     if (!user){
-      return NextResponse.json({ error: `user  ${u_id} not found` }, { status: 404 });
+      return NextResponse.json({ error: `user  ${user_id} not found` }, { status: 404 });
     }
 
     // 2. Strict check for the ID

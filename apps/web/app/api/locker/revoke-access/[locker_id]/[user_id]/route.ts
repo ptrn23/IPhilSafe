@@ -14,7 +14,6 @@ export async function POST(
     }
 
     const l_id = parseInt(locker_id, 10)
-    const u_id = parseInt(user_id, 10)
 
     // verify locker exists
     const locker = await prisma.locker.findUnique({
@@ -26,7 +25,7 @@ export async function POST(
 
     // verify user exists
     const user = await prisma.user.findFirst({
-      where: { uinPhilsys: u_id }
+      where: { uinPhilsys: user_id }
     });
 
     if (user === undefined || user === null) {
@@ -50,7 +49,7 @@ export async function POST(
       });
   
       // Log the event 
-      create_audit_log(l_id, 'Revoke_Access', "Access to the locker is revoked by admin user", u_id)
+      create_audit_log(l_id, 'Revoke_Access', "Access to the locker is revoked by admin user", user_id)
 
       // 3. Reset the locker weight to 0 or a baseline if needed
       await prisma.locker.update({
