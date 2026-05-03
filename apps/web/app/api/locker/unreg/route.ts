@@ -5,11 +5,12 @@ export async function POST(
     req: NextRequest) {
   try {
     const { locker_id, weight } = await req.json()
-    const l_id = parseInt(locker_id, 10)
-    const w = parseInt(weight, 10)
-    if (!locker_id) {
+    
+    if (locker_id == undefined || locker_id == null || weight == null || weight == undefined  ) {
       return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
     }
+    const l_id = parseInt(locker_id, 10)
+    const w_new = parseInt(weight, 10)
 
     // Check if locker exists
     const locker = await prisma.locker.findUnique({
@@ -32,11 +33,16 @@ export async function POST(
 
     // check if weight is within empty weight assumption
     const w_empty = 10
-    if (isNaN(w)){
+    if (isNaN(w_new)){
       return NextResponse.json({ error: `Weight is not a number ${weight}` }, { status: 404 });
     }
 
-    if (w > w_empty){
+    if (w_new > w_empty){
+      // udaptes current weight to not flag tamper detection
+      await prisma.locker.update({
+        where: { lockerId: l_id },
+        data: { weight: w_new }
+      });
       return NextResponse.json({ error: `Current weight ${weight}: All belongings haven't been cleared out of locker` }, { status: 404 });
     }
     

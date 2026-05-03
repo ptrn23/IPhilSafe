@@ -8,7 +8,7 @@ export async function POST(
   try {
     const {locker_id, user_id}  = await req.json()
     // Strict check for the params
-    if (!locker_id || !user_id ) {
+    if (locker_id == undefined || locker_id == null || !user_id ) {
       return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
     }
 

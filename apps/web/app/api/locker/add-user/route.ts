@@ -7,7 +7,7 @@ export async function POST(
   try {
     const { qrData, locker_id } = await req.json();
     // 2. Strict check for the ID
-    if (!qrData || !locker_id ) {
+    if (!qrData ||locker_id == undefined || locker_id == null) {
       return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
     }
     const user_data = JSON.parse(qrData);
