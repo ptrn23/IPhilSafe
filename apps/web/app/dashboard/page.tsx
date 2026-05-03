@@ -192,6 +192,20 @@ export default function Dashboard() {
     console.log(`🗄️| update weight ${l_id}:`, data);
   }; 
 
+  const closeLocker = async () => {
+    const l_id = 2
+    const new_weight = 100
+    const res = await fetch(`/api/locker/close-locker`, {
+      method: "POST",
+      headers:{ "Content-Type": "application/json" },
+      body: JSON.stringify({ 
+        locker_id: l_id, 
+        weight: new_weight
+      }),
+    });
+    const data = await res.json();
+    console.log(`🗄️| update weight ${l_id}:`, data);
+  }; 
 
   const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
     setLocker(prev => ({ ...prev, ...newLockerState }));
@@ -388,6 +402,7 @@ export default function Dashboard() {
               <Button onClick={unregisterLocker} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Unregister Locker</Button>
               <Button onClick={updateWeight} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Update Weight</Button>
               <Button onClick={fetchAuditLogs} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Audit Logs</Button>
+              <Button onClick={closeLocker} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Close Locker</Button>
             </div>
           </div>
 

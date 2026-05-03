@@ -7,7 +7,12 @@ export async function get_locker_state(l: Locker | null){
   
   const [last_log, isOccupied] = await Promise.all([
     prisma.auditLog.findFirst({
-      where: { lockerId: l.lockerId },
+      where: { 
+        lockerId: l.lockerId,
+        sysType: {
+          in: ["Registration_Started", "Registration_Finished"]
+        },
+      },
       orderBy: { createdAt: 'desc' },
       select: { sysType: true } // Avoid BigInt logId crash
     }),
@@ -22,13 +27,33 @@ export async function get_locker_state(l: Locker | null){
   let state = "IDLE";
   if (last_log?.sysType === 'Tampered') {
     state = "TAMPERED";
-  } else if (last_log?.sysType === 'Registering' || last_log?.sysType === 'Added_user') {
+  } else if (last_log?.sysType === 'Registration_Started') {
     state = "REGISTER";
   } else if (isOccupied.length != 0) {
     state = "OCCUPIED";
   }
   console.log("inside isoccuped", isOccupied)
   return state;
+}
+export async function isLockerClosed(l: Locker | null){
+  if (!l){
+    return false;
+  }
+  
+  const last_log = await prisma.auditLog.findFirst({
+    where: { 
+      lockerId: l.lockerId,
+      sysType: {
+        in: ["Locker_Closed", "Locker_Opened"]
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { sysType: true } // Avoid BigInt logId crash
+  })
+  if (last_log && last_log.sysType == "Locker_Closed"){
+    return true
+  }
+  return false;
 }
 
 export async function create_audit_log(l_id: number, sys_type: sys_log_type, msg: string, user_id : string|null = null){

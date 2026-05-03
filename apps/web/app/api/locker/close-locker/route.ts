@@ -1,56 +1,42 @@
-// import { NextResponse, NextRequest } from 'next/server';
-// import { prisma } from '@repo/db';
-// import { create_audit_log, get_locker_state } from '../../../utils';
-// export async function POST(
-//     req: NextRequest,
-//     { params }: { params: Promise<{ user_id:string, locker_id: string }> }
+import { NextResponse, NextRequest } from 'next/server';
+import { prisma } from '@repo/db';
+import { create_audit_log} from '../../utils';
+export async function POST(
+    req: NextRequest,
 
-// ) {
-//   try {
-//     const { user_id, locker_id } = await params;
-//     // Strict check for the params
-//     if (!user_id || !locker_id) {
-//       return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
-//     } 
+) {
+  try {
+    const { weight, locker_id } = await req.json();
+    // Strict check for the params
+    if (!weight || !locker_id) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    } 
 
-//     const uin = parseInt(user_id, 10)
-//     const l_id = parseInt(locker_id, 10)
+    const w_new = parseInt(weight, 10)
+    const l_id = parseInt(locker_id, 10)
 
-//     // check if user and locker exists
-//     const user = await prisma.user.findUnique({
-//       where: { uinPhilsys: uin }
-//     });
-//     const locker = await prisma.locker.findUnique({
-//       where: { lockerId: l_id }
-//     });
-//     if (!user) {
-//       return NextResponse.json({ error: "User not found" }, { status: 404 });
-//     }
-//     if (!locker){
-//       return NextResponse.json({ error: "Locker not found" }, { status: 404 });
-//     }
+    // check if locker exists
+    const locker = await prisma.locker.findUnique({
+      where: { lockerId: l_id }
+    });
+    if (!locker){
+      return NextResponse.json({ error: "Locker not found" }, { status: 404 });
+    }
 
-//     // check if existing relationship between locker and user
-//     const isUserVerified = await prisma.userLocker.findFirst({
-//       where:{
-//         userId: uin, 
-//         lockerId: l_id
-//       }
-//     });
+    // Update weight to bypass tamper detection
+    const result = await prisma.locker.update({
+      where: { lockerId: l_id },
+      data: { weight: w_new }
+    });
 
-//     if (isUserVerified){
-//       create_audit_log(l_id, 'Locker_Opened', "Locker opened by user", uin )      
-//       return NextResponse.json({ message: "Authorized", name: user.firstName });
-//     }
-//     else if (await get_locker_state(locker) == "OCCUPIED"){
-//       create_audit_log(l_id, 'Denied_Access', "Locker denied access to user", uin )      
-//       return NextResponse.json({ message: "Denied", name: user.firstName });
-//     }
-//     else{
-//       return NextResponse.json({ error: "Locker not in OCCUPIED state" }, { status: 404 });
-//     }
-//   } catch (e) {
-//     console.error(e);
-//     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
-//   }
-// }
+    // create audit log
+    create_audit_log(l_id, "Locker_Closed", "Locker is closed")
+    return NextResponse.json({ 
+      status: "Weight Updated", 
+      current: result.weight,
+    });
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}

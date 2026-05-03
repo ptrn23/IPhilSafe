@@ -56,12 +56,13 @@ enum role {
 }
 
 enum sys_log_type {
-  Registering
+  Registration_Started
   Unregister
   Tampered
-  Added_user    @map("Added user")
+  Added_user            @map("Added user")
   Locker_Opened
   Revoke_Access
   Locker_Closed
   Denied_Access
+  Registration_Finished
 }
