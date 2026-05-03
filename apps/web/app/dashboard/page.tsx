@@ -66,12 +66,6 @@ export default function Dashboard() {
     }
   }, [router]);
 
-  const fetchUsers = async () => {
-    const res = await fetch("/api/users");
-    const data = await res.json();
-    console.log("📦 API RESPONSE:", data);
-  };
-
   const fetchLockers = async () => {
     const id = 10101
     const res = await fetch(`/api/get-lockers/${id}`);
@@ -342,7 +336,6 @@ export default function Dashboard() {
               <h2 className="text-lg font-bold text-indigo-900">Backend API Tests</h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Button onClick={fetchUsers} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Users</Button>
               <Button onClick={fetchLockers} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Lockers</Button>
               <Button onClick={addUser} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Add User</Button>
               <Button onClick={revokeLockerAccess} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Revoke Access</Button>
