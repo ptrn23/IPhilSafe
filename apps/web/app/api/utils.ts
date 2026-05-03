@@ -10,11 +10,12 @@ export async function get_locker_state(l: Locker | null){
   orderBy: { createdAt: 'desc' },
   select: { sysType: true } // Avoid BigInt logId crash
   })
-  
   // 4. Logic State
   let state = "IDLE";
   if (last_log?.sysType === 'Tampered') {
     state = "TAMPERED";
+  } else if (last_log?.sysType === 'Registering' || last_log?.sysType === 'Added_user') {
+    state = "REGISTER";
   } else if (l) {
     state = "OCCUPIED";
   }
