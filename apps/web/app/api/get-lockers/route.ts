@@ -20,7 +20,7 @@ export async function POST(
     });
 
     if (user === undefined || user === null) {
-      return NextResponse.json({ error: "No user in the database" }, { status: 400 });
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // get lockers

@@ -17,7 +17,7 @@ export async function POST(
     // Check if it's actually a number (Note: 0 is a valid number!)
     if (isNaN(l_id)) {
       return NextResponse.json({ error: `Value '${l_id}' is not a valid number` }, { status: 400 });
-    }
+    }   
 
     console.log("Status Request for ID:", l_id, locker_id);
     
@@ -26,7 +26,7 @@ export async function POST(
     });
     // check if locker in database
     if (!locker){
-      return NextResponse.json({ error: "Locker not found" }, { status: 404 });
+      return NextResponse.json({ error: `Locker ${locker_id} not found` }, { status: 404 });
     }
 
     // 4. Logic State

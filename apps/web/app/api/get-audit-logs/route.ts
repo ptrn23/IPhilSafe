@@ -24,7 +24,7 @@ export async function POST(
 
     // 2. Strict check for the ID
     if (user.userRole != 'Admin') {
-      return NextResponse.json({ error: "User role is not admin" }, { status: 400 });
+      return NextResponse.json({ error: "User role is not admin" }, { status: 401 });
     }
                       
     const res = await prisma.auditLog.findMany();

@@ -11,39 +11,42 @@ export async function POST(
     }
     const l_id = parseInt(locker_id, 10)
     const w_new = parseInt(weight, 10)
+    // Check if locker id is a number (Note: 0 is a valid number!)
+    if (isNaN(l_id)) {
+      return NextResponse.json({ error: `Value ${l_id} is not a valid number` }, { status: 400 });
+    }
+    if (isNaN(w_new)) {
+      return NextResponse.json({ error: `Value ${w_new} is not a valid number` }, { status: 400 });
+    }
 
     // Check if locker exists
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
     });
     if (!locker){
-      return NextResponse.json({ error: "Locker not found" }, { status: 404 });
+      return NextResponse.json({ error: `Locker ${l_id} not found` }, { status: 404 });
     }
     
     // check if locker is closed
     if ((await isLockerClosed(locker)) == false){
-      return NextResponse.json({ error: "Locker is not closed" }, { status: 404 });
+      return NextResponse.json({ error:  `Locker ${l_id} is open` }, { status: 409 });
     }
     
     // check locker is in occupied state
     const cur_l_state = await get_locker_state(locker)
     if (cur_l_state != "OCCUPIED"){
-      return NextResponse.json({ error: `Locker not occupied in state ${cur_l_state}` }, { status: 404 });
+      return NextResponse.json({ error: `Locker not OCCUPIED. In state ${cur_l_state}` }, { status: 409 });
     }
 
     // check if weight is within empty weight assumption
     const w_empty = 10
-    if (isNaN(w_new)){
-      return NextResponse.json({ error: `Weight is not a number ${weight}` }, { status: 404 });
-    }
-
     if (w_new > w_empty){
       // udaptes current weight to not flag tamper detection
       await prisma.locker.update({
         where: { lockerId: l_id },
         data: { weight: w_new }
       });
-      return NextResponse.json({ error: `Current weight ${weight}: All belongings haven't been cleared out of locker` }, { status: 404 });
+      return NextResponse.json({ error: `Current weight ${weight}: All belongings haven't been cleared out of locker` }, { status: 409 });
     }
     
     // 1. Remove the user assignment (handleCheckout)
@@ -62,7 +65,7 @@ export async function POST(
       data: { weight: 0 }
     });
 
-    return NextResponse.json({ status: "IDLE", removed:res });
+    return NextResponse.json({ status: "Unregistration successful", removed:res });
 
   } catch (error) {
     console.error("Checkout Error:", error);

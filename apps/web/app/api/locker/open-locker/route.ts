@@ -14,10 +14,14 @@ export async function POST(
     const uin = user_data.subject.uin;
     const name = user_data.subject.name;
     const l_id = Number(locker_id);
+    // Check if locker id is a number (Note: 0 is a valid number!)
+    if (isNaN(l_id)) {
+      return NextResponse.json({ error: `Value ${l_id} is not a valid number` }, { status: 400 });
+    }
 
     // // MOSIP verification
     // const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data.subject));
-    // if (mosipResult.status !== "verified") {
+    // if (mosipResult.status !== "verified"~) {
     //   return NextResponse.json({ error: `MOSIP verification failed: ${mosipResult.message || "Unknown error"}` }, { status: 401 });
     // }
 
@@ -29,10 +33,10 @@ export async function POST(
       where: { lockerId: l_id }
     });
     if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json({ error: `User ${name} with uin ${uin} is already a user for locker ${l_id}` }, { status: 404 });
     }
     if (!locker){
-      return NextResponse.json({ error: "Locker not found" }, { status: 404 });
+      return NextResponse.json({ error: `Locker ${l_id} not found` }, { status: 404 });
     }
 
     // check if existing relationship between locker and user

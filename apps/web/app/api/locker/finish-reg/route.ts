@@ -4,23 +4,28 @@ import { create_audit_log, get_locker_state, isLockerClosed } from '../../utils'
 export async function POST(
     req: NextRequest) {
   try {
-    const { locker_id, weight } = await req.json()
-    if (locker_id == undefined || locker_id == null || weight == null || weight == undefined  ) {
-      return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
+    const { locker_id } = await req.json()
+    if (locker_id == undefined || locker_id == null  ) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
     }
     const l_id = parseInt(locker_id, 10)
-    const w_new = parseInt(weight, 10)
+    // Check if locker id is a number (Note: 0 is a valid number!)
+    if (isNaN(l_id)) {
+      return NextResponse.json({ error: `Value ${l_id} is not a valid number` }, { status: 400 });
+    }
     
     // Check if locker exists
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
     });
     if (!locker){
-      return NextResponse.json({ error: "Locker not found" }, { status: 404 });
-    }        
+      return NextResponse.json({ error: `Locker ${l_id} not found` }, { status: 404 });
+    }    
 
-    if (await get_locker_state(locker) != "REGISTER"){
-      return NextResponse.json({ error: "Not in Registration Period" }, { status: 404 });
+    //check if locker is not in IDLE state
+    const state = await get_locker_state(locker)
+    if(state != "REGISTER"){
+      return NextResponse.json({ error: `Not in Registration Period` }, { status: 409 });
     }
 
     // check if no users added to locker
@@ -31,20 +36,13 @@ export async function POST(
     })
     if (!users){
       create_audit_log(l_id, 'Registration_Finished', 'Registration Finished')
-      return NextResponse.json({ error: "No users added " }, { status: 404 });
+      return NextResponse.json({ error: "No users added " }, { status: 409 });
     }
-
-
-    // Sets inital weight of locker
-    const result = await prisma.locker.update({
-      where: { lockerId: l_id },
-      data: { weight: w_new }
-    });
 
     create_audit_log(l_id, 'Registration_Finished', 'Registration Finished')
     create_audit_log(l_id, 'Locker_Opened', 'Lockers is opened after successful registration')
 
-    return NextResponse.json({ status: "OCCUPIED" });
+    return NextResponse.json({ message: "Successful registration", locker_id: l_id });
 
   } catch (error) {
     console.error("Checkout Error:", error);

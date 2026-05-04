@@ -14,6 +14,10 @@ export async function POST(
     const uin = user_data.subject.uin;
     const name = user_data.subject.name;
     const l_id = Number(locker_id);
+    // Check if locker id is a number (Note: 0 is a valid number!)
+    if (isNaN(l_id)) {
+      return NextResponse.json({ error: `Value ${l_id} is not a valid number` }, { status: 400 });
+    }
 
     // // MOSIP verification
     // const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data.subject));

@@ -209,13 +209,11 @@ export default function Dashboard() {
 
   const finishReg = async () => {
     const l_id = 2
-    const new_weight = 100
     const res = await fetch(`/api/locker/finish-reg`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
       body: JSON.stringify({ 
         locker_id: l_id, 
-        weight: new_weight
       }),
     });
     const data = await res.json();
