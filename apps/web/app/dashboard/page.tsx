@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +16,7 @@ interface LockerData {
   state: LockerState;
   currentWeight: number;
   ownerUINs: string[];
-  previousState?: LockerState; 
+  previousState?: LockerState;
 }
 
 interface LogEntry {
@@ -47,16 +47,9 @@ export default function Dashboard() {
   const router = useRouter();
   
   const [session, setSession] = useState<UserSession | null>(null);
-
-  const [locker, setLocker] = useState<LockerData>({
-    id: "Locker 1",
-    state: "IDLE",
-    currentWeight: 0.00,
-    ownerUINs: [],
-    previousState: 'IDLE',
-  });
-
+  const [lockers, setLockers] = useState<LockerData[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+
   useEffect(() => {
     const savedSession = localStorage.getItem('iphilsafe_session');
     if (!savedSession) {
@@ -65,215 +58,371 @@ export default function Dashboard() {
       setSession(JSON.parse(savedSession));
     }
   }, [router]);
+    
+    // ADDED
+  const fetchLockersData = useCallback(async () => {
+    if (!session) return;
+    try {
+      const id = session.uin || "10101"; 
+      const res = await fetch(`/api/get-lockers`, {
+        method: "POST",
+        headers:{ "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: String(id) }),
+      });
+      const data = await res.json();
+      
+      const fetchedLockers = Array.isArray(data) ? data : (data.lockers || []);
+      setLockers(fetchedLockers);
+    } catch (error) {
+      console.error("Failed to fetch lockers:", error);
+    }
+  }, [session]);
+
+  useEffect(() => {
+    if (!session) return;
+
+    fetchLockersData(); 
+
+    const intervalId = setInterval(() => {
+      fetchLockersData();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [session, fetchLockersData]);
+    
+  const hasTamperedLocker = lockers.some(l => l.state === 'TAMPERED');
+
+  // const fetchLockers = async () => {
+  //   const id = 10101
+  //   const res = await fetch(`/api/get-lockers`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       user_id: String(id) }),
+  //   });
+  //   const data = await res.json();
+  //   console.log("🗄️| lockers returned:", data);
+  // };
+
+  // const addUser = async () => {
+  //   const qrdata = JSON.stringify({ subject: {
+  //     uin: "4104961936",
+  //     dob: "2004/02/17", //  check format
+  //     name: "Cellin Louise Cheng"
+  //   } });
+  //   const lockerid = 2
+  //   const res = await fetch(`/api/locker/add-user`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+  //   });
+  //   const data = await res.json();
+  //   console.log("🗄️| added lockers:", data);
+  // };
+
+  // const fetchAuditLogs = async () => {
+  //   const id = 10101
+  //   const res = await fetch(`/api/get-audit-logs`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       user_id: String(id) }),
+  //   });
+  //   const data = await res.json();
+  //   console.log("📑| audit logs returned:", data);
+  // };
+
+  // const revokeLockerAccess = async () => {
+  //   const u_id = 10101
+  //   const l_id = 2
+  //   const res = await fetch(`/api/locker/revoke-access`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       locker_id: String(l_id), 
+  //       user_id: String(u_id) 
+  //     }),
+  //   });
+  //   const data = await res.json();
+  //   console.log("🚫 | Access for locker revoked :", data);
+  // };
+
+  // const getLockerStatus = async () => {
+  //   const l_id = 2
+  //   const res = await fetch(`/api/locker/get-status`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       locker_id: String(l_id), 
+  //     }),
+  //   });
+  //   const data = await res.json();
+  //   console.log(`🗄️| status of locker ${l_id} :`, data);
+  // }; 
+
+  // const openLocker = async () => {
+  //   const qrdata = JSON.stringify({ subject: {
+  //     uin: "4104961936",
+  //     dob: "2004/02/17", //  check format
+  //     name: "Cellin Louise Cheng"
+  //   } });
+  //   const lockerid = 2
+  //   const res = await fetch(`/api/locker/open-locker`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+  //   });
+  //   const data = await res.json();
+  //   console.log(`🔒| open locker ${lockerid} for user ${JSON.parse(qrdata).subject.uin} :`, data);
+  // }; 
+
+  // const startRegistration = async () => {
+  //   const l_id = 2
+  //   const res = await fetch(`/api/locker/start-reg`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       locker_id: l_id, 
+  //     }),
+  //   });
+  //   const data = await res.json();
+  //   console.log(`🗄️| start registration for locker ${l_id}:`, data);
+  // }; 
+
+  // const unregisterLocker = async () => {
+  //   const l_id = 2
+  //   const res = await fetch(`/api/locker/unreg`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       locker_id: l_id, 
+  //       weight: 0
+  //     }),
+  //   });
+  //   const data = await res.json();
+  //   console.log(`🗄️| unregister locker ${l_id}:`, data);
+  // }; 
+
+  // const updateWeight = async () => {
+  //   const l_id = 2
+  //   const new_weight = 0
+  //   const res = await fetch(`/api/locker/update-weight`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       locker_id: l_id, 
+  //       weight: new_weight
+  //     }),
+  //   });
+  //   const data = await res.json();
+  //   console.log(`🗄️| update weight ${l_id}:`, data);
+  // }; 
+
+  // const closeLocker = async () => {
+  //   const l_id = 2
+  //   const new_weight = 100
+  //   const res = await fetch(`/api/locker/close-locker`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       locker_id: l_id, 
+  //       weight: new_weight
+  //     }),
+  //   });
+  //   const data = await res.json();
+  //   console.log(`🗄️| close locker ${l_id}:`, data);
+  // }; 
+
+  // const finishReg = async () => {
+  //   const l_id = 2
+  //   const res = await fetch(`/api/locker/finish-reg`, {
+  //     method: "POST",
+  //     headers:{ "Content-Type": "application/json" },
+  //     body: JSON.stringify({ 
+  //       locker_id: l_id, 
+  //     }),
+  //   });
+  //   const data = await res.json();
+  //   console.log(`🗄️| Finish registration for locker ${l_id}:`, data);
+  // }; 
+
+  // API TEST FUNCTIONS
+  const TEST_LOCKER_ID = "2"; 
+  const TEST_USER_ID = session?.uin || "10101";
+  const TEST_QR_DATA = JSON.stringify({ 
+    subject: { 
+      uin: "4104961936", 
+      dob: "2004/02/17", 
+      name: "Cellin Louise Cheng" 
+    } 
+  });
+  const TEST_WEIGHT = "1.50"; 
+  const EMPTY_WEIGHT = "0";
 
   const fetchLockers = async () => {
-    const id = 10101
     const res = await fetch(`/api/get-lockers`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        user_id: String(id) }),
+      body: JSON.stringify({ user_id: String(TEST_USER_ID) }),
     });
     const data = await res.json();
     console.log("🗄️| lockers returned:", data);
   };
 
   const addUser = async () => {
-    const qrdata = JSON.stringify({ subject: {
-      uin: "4104961936",
-      dob: "2004/02/17", //  check format
-      name: "Cellin Louise Cheng"
-    } });
-    const lockerid = 2
     const res = await fetch(`/api/locker/add-user`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+      body: JSON.stringify({ qr_data: TEST_QR_DATA, locker_id: TEST_LOCKER_ID }),
     });
     const data = await res.json();
-    console.log("🗄️| added lockers:", data);
+    console.log("🗄️| added user:", data);
   };
 
   const fetchAuditLogs = async () => {
-    const id = 10101
     const res = await fetch(`/api/get-audit-logs`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        user_id: String(id) }),
+      body: JSON.stringify({ user_id: String(TEST_USER_ID) }),
     });
     const data = await res.json();
     console.log("📑| audit logs returned:", data);
   };
 
   const revokeLockerAccess = async () => {
-    const u_id = 10101
-    const l_id = 2
     const res = await fetch(`/api/locker/revoke-access`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        locker_id: String(l_id), 
-        user_id: String(u_id) 
-      }),
+      body: JSON.stringify({ locker_id: TEST_LOCKER_ID, user_id: String(TEST_USER_ID) }),
     });
     const data = await res.json();
-    console.log("🚫 | Access for locker revoked :", data);
+    console.log("🚫 | access revoked:", data);
   };
 
   const getLockerStatus = async () => {
-    const l_id = 2
     const res = await fetch(`/api/locker/get-status`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        locker_id: String(l_id), 
-      }),
+      body: JSON.stringify({ locker_id: TEST_LOCKER_ID }),
     });
     const data = await res.json();
-    console.log(`🗄️| status of locker ${l_id} :`, data);
+    console.log(`🗄️| status of locker ${TEST_LOCKER_ID}:`, data);
   }; 
 
   const openLocker = async () => {
-    const qrdata = JSON.stringify({ subject: {
-      uin: "4104961936",
-      dob: "2004/02/17", //  check format
-      name: "Cellin Louise Cheng"
-    } });
-    const lockerid = 2
     const res = await fetch(`/api/locker/open-locker`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+      body: JSON.stringify({ qr_data: TEST_QR_DATA, locker_id: TEST_LOCKER_ID }),
     });
     const data = await res.json();
-    console.log(`🔒| open locker ${lockerid} for user ${JSON.parse(qrdata).subject.uin} :`, data);
+    console.log(`🔒| open locker ${TEST_LOCKER_ID}:`, data);
   }; 
 
   const startRegistration = async () => {
-    const l_id = 2
     const res = await fetch(`/api/locker/start-reg`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        locker_id: l_id, 
-      }),
+      body: JSON.stringify({ locker_id: TEST_LOCKER_ID }),
     });
     const data = await res.json();
-    console.log(`🗄️| start registration for locker ${l_id}:`, data);
+    console.log(`🗄️| start registration for locker ${TEST_LOCKER_ID}:`, data);
   }; 
 
   const unregisterLocker = async () => {
-    const l_id = 2
     const res = await fetch(`/api/locker/unreg`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        locker_id: l_id, 
-        weight: 0
-      }),
+      body: JSON.stringify({ locker_id: TEST_LOCKER_ID, weight: EMPTY_WEIGHT }),
     });
     const data = await res.json();
-    console.log(`🗄️| unregister locker ${l_id}:`, data);
+    console.log(`🗄️| unregister locker ${TEST_LOCKER_ID}:`, data);
   }; 
 
   const updateWeight = async () => {
-    const l_id = 2
-    const new_weight = 0
     const res = await fetch(`/api/locker/update-weight`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        locker_id: l_id, 
-        weight: new_weight
-      }),
+      body: JSON.stringify({ locker_id: TEST_LOCKER_ID, weight: TEST_WEIGHT }),
     });
     const data = await res.json();
-    console.log(`🗄️| update weight ${l_id}:`, data);
+    console.log(`🗄️| update weight for locker ${TEST_LOCKER_ID}:`, data);
   }; 
 
   const closeLocker = async () => {
-    const l_id = 2
-    const new_weight = 100
     const res = await fetch(`/api/locker/close-locker`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        locker_id: l_id, 
-        weight: new_weight
-      }),
+      body: JSON.stringify({ locker_id: TEST_LOCKER_ID, weight: TEST_WEIGHT }),
     });
     const data = await res.json();
-    console.log(`🗄️| close locker ${l_id}:`, data);
+    console.log(`🗄️| close locker ${TEST_LOCKER_ID}:`, data);
   }; 
 
   const finishReg = async () => {
-    const l_id = 2
     const res = await fetch(`/api/locker/finish-reg`, {
       method: "POST",
       headers:{ "Content-Type": "application/json" },
-      body: JSON.stringify({ 
-        locker_id: l_id, 
-      }),
+      body: JSON.stringify({ locker_id: TEST_LOCKER_ID }),
     });
     const data = await res.json();
-    console.log(`🗄️| Finish registration for locker ${l_id}:`, data);
-  }; 
-
-  const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
-    setLocker(prev => ({ ...prev, ...newLockerState }));
-    const newLog: LogEntry = {
-      id: Math.random().toString(36).substring(2, 9),
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      action: action,
-      details: logDetails,
-    };
-    setLogs(prevLogs => [newLog, ...prevLogs]);
+    console.log(`🗄️| finish registration for locker ${TEST_LOCKER_ID}:`, data);
   };
 
-  const generateRandomUIN = () => `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
-  const generateRandomWeight = () => +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
+  // const pushHardwareEvent = (action: string, newLockerState: Partial<LockerData>, logDetails: string) => {
+  //   setLocker(prev => ({ ...prev, ...newLockerState }));
+  //   const newLog: LogEntry = {
+  //     id: Math.random().toString(36).substring(2, 9),
+  //     timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+  //     action: action,
+  //     details: logDetails,
+  //   };
+  //   setLogs(prevLogs => [newLog, ...prevLogs]);
+  // };
 
-  const simulateScan = () => {
-    if (locker.state === 'IDLE') {
-      const newUIN = generateRandomUIN();
-      pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: [newUIN] }, `Primary user (${newUIN}) authenticated.`);
-    } else if (locker.state === 'OCCUPIED') {
-      const temporaryWeight = +(locker.currentWeight * 0.4).toFixed(2); 
-      pushHardwareEvent("Access Scan", { currentWeight: temporaryWeight }, "Authorized user scanned ID. Door unlocked for temporary access.");
-    }
-  };
+  // const generateRandomUIN = () => `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
+  // const generateRandomWeight = () => +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
 
-  const simulateMultiScan = () => {
-    if (locker.state !== 'REGISTER') return;
-    const coUserUIN = generateRandomUIN();
-    pushHardwareEvent("Co-User Scan", { ownerUINs: [...locker.ownerUINs, coUserUIN] }, `Secondary user (${coUserUIN}) appended to session.`);
-  };
+  // const simulateScan = () => {
+  //   if (locker.state === 'IDLE') {
+  //     const newUIN = generateRandomUIN();
+  //     pushHardwareEvent("ID Scan", { state: 'REGISTER', ownerUINs: [newUIN] }, `Primary user (${newUIN}) authenticated.`);
+  //   } else if (locker.state === 'OCCUPIED') {
+  //     const temporaryWeight = +(locker.currentWeight * 0.4).toFixed(2); 
+  //     pushHardwareEvent("Access Scan", { currentWeight: temporaryWeight }, "Authorized user scanned ID. Door unlocked for temporary access.");
+  //   }
+  // };
 
-  const simulateDeposit = () => {
-    const newWeight = generateRandomWeight();
-    if (locker.state === 'REGISTER') {
-      pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: newWeight }, `Initial baseline mass registered at ${newWeight} kg.`);
-    } else if (locker.state === 'OCCUPIED') {
-      pushHardwareEvent("Door Closed", { currentWeight: newWeight }, `Door closed. New baseline mass registered at ${newWeight} kg.`);
-    }
-  };
+  // const simulateMultiScan = () => {
+  //   if (locker.state !== 'REGISTER') return;
+  //   const coUserUIN = generateRandomUIN();
+  //   pushHardwareEvent("Co-User Scan", { ownerUINs: [...locker.ownerUINs, coUserUIN] }, `Secondary user (${coUserUIN}) appended to session.`);
+  // };
 
-  const simulateTheft = () => pushHardwareEvent("Tamper Detected", { state: 'TAMPERED', currentWeight: 0.00 }, "CRITICAL: Unauthorized mass drop.");
-  const simulateFailedCheckout = () => pushHardwareEvent("Checkout Denied", { state: 'UNREGISTER', currentWeight: 1.20 }, "User attempted checkout, but items remain inside.");
-  const simulateClearCheckout = () => pushHardwareEvent("Session Ended", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Compartment verified empty. Ledger cleared.");
+  // const simulateDeposit = () => {
+  //   const newWeight = generateRandomWeight();
+  //   if (locker.state === 'REGISTER') {
+  //     pushHardwareEvent("Door Closed", { state: 'OCCUPIED', currentWeight: newWeight }, `Initial baseline mass registered at ${newWeight} kg.`);
+  //   } else if (locker.state === 'OCCUPIED') {
+  //     pushHardwareEvent("Door Closed", { currentWeight: newWeight }, `Door closed. New baseline mass registered at ${newWeight} kg.`);
+  //   }
+  // };
+
+  // const simulateTheft = () => pushHardwareEvent("Tamper Detected", { state: 'TAMPERED', currentWeight: 0.00 }, "CRITICAL: Unauthorized mass drop.");
+  // const simulateFailedCheckout = () => pushHardwareEvent("Checkout Denied", { state: 'UNREGISTER', currentWeight: 1.20 }, "User attempted checkout, but items remain inside.");
+  // const simulateClearCheckout = () => pushHardwareEvent("Session Ended", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Compartment verified empty. Ledger cleared.");
   
-  const simulateNetworkError = () => {
-    if (locker.state === 'SERVER_ERROR') return;
-    pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR', previousState: locker.state }, "Lost connection to MOSIP Testbed.");
-  };
+  // const simulateNetworkError = () => {
+  //   if (locker.state === 'SERVER_ERROR') return;
+  //   pushHardwareEvent("System Timeout", { state: 'SERVER_ERROR', previousState: locker.state }, "Lost connection to MOSIP Testbed.");
+  // };
 
-  const simulateNetworkRestore = () => {
-    const targetState = locker.previousState || 'IDLE';
-    pushHardwareEvent("Network Restored", { state: targetState }, `Connection re-established. Resuming ${targetState} phase.`);
-  };
+  // const simulateNetworkRestore = () => {
+  //   const targetState = locker.previousState || 'IDLE';
+  //   pushHardwareEvent("Network Restored", { state: targetState }, `Connection re-established. Resuming ${targetState} phase.`);
+  // };
 
-  const simulateAdminOverride = () => pushHardwareEvent("Admin Override", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Tamper flag cleared by administrator. Locker reset to IDLE.");
+  // const simulateAdminOverride = () => pushHardwareEvent("Admin Override", { state: 'IDLE', currentWeight: 0.00, ownerUINs: [] }, "Tamper flag cleared by administrator. Locker reset to IDLE.");
 
   const handleLogout = () => {
     localStorage.removeItem('iphilsafe_session');
@@ -307,42 +456,42 @@ export default function Dashboard() {
 
       <Separator className="mb-8" />
 
-      {locker.state === 'TAMPERED' && session.role === 'ADMIN' && (
+      {hasTamperedLocker && session.role === 'ADMIN' && ( // CHANGE
         <div className="mb-6 bg-red-600 border-2 border-red-800 rounded-xl p-4 shadow-lg animate-pulse flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="bg-white text-red-600 rounded-full p-2 font-black text-xl w-10 h-10 flex items-center justify-center">!</div>
             <div>
               <h2 className="text-white font-extrabold text-lg uppercase tracking-wider">Critical Security Alert</h2>
-              <p className="text-red-100 text-sm font-medium">Unauthorized mass shift detected in {locker.id}. Immediate physical inspection required.</p>
+              <p className="text-red-100 text-sm font-medium">Unauthorized mass shift detected. Immediate physical inspection required.</p>
             </div>
           </div>
-          <Button onClick={simulateAdminOverride} variant="outline" className="bg-white text-red-700 border-transparent hover:bg-red-50 font-bold">
+          <Button variant="outline" className="bg-white text-red-700 border-transparent hover:bg-red-50 font-bold">
             Acknowledge & Clear
           </Button>
         </div>
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-semibold">{locker.id}</CardTitle>
-            <Badge className={getStateColor(locker.state)}>{locker.state}</Badge>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-end justify-between mt-2">
-              <div className="text-sm text-slate-500">
-                <p>Current Load: <span className="font-mono text-slate-900 font-medium">{locker.currentWeight.toFixed(2)} kg</span></p>
-                <p>Owner UINs: <span className="font-mono text-slate-900">{locker.ownerUINs.length > 0 ? locker.ownerUINs.join(', ') : 'None'}</span></p>
-              </div>
-              
-              {locker.state === 'TAMPERED' && session.role === 'ADMIN' && (
-                <Button onClick={simulateAdminOverride} variant="destructive" size="sm" className="font-bold shadow-sm">
-                  Clear (Admin)
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {lockers.length === 0 ? (
+          <p className="text-slate-500 col-span-full">Fetching lockers from database...</p>
+        ) : (
+          lockers.map((locker) => (
+            <Card key={locker.id} className="shadow-sm border-slate-200">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-semibold">Locker {locker.id}</CardTitle>
+                <Badge className={getStateColor(locker.state)}>{locker.state}</Badge>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-end justify-between mt-2">
+                  <div className="text-sm text-slate-500">
+                    <p>Current Load: <span className="font-mono text-slate-900 font-medium">{Number(locker.currentWeight).toFixed(2)} kg</span></p>
+                    <p>Owner UINs: <span className="font-mono text-slate-900">{locker.ownerUINs?.length > 0 ? locker.ownerUINs.join(', ') : 'None'}</span></p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       <Separator className="mb-8" />
@@ -383,7 +532,7 @@ export default function Dashboard() {
 
       {session.role === 'ADMIN' && (
         <div className="mt-16 p-6 border border-slate-200 rounded-xl bg-white shadow-sm space-y-8">
-          <div>
+          {/* <div>
             <div className="mb-4">
               <h2 className="text-lg font-bold text-slate-900">UI State Simulators</h2>
             </div>
@@ -399,7 +548,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <Separator />
+          <Separator /> */}
 
           <div>
              <div className="mb-4">
