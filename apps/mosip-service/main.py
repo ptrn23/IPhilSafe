@@ -4,26 +4,12 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-import psycopg2
-from dotenv import load_dotenv
 from dynaconf import Dynaconf
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from mosip_auth_sdk import MOSIPAuthenticator
 from mosip_auth_sdk.models import DemographicsModel
 from pydantic import BaseModel
-
-from fastapi.middleware.cors import CORSMiddleware
-
-app = FastAPI()
-
-# Allow local frontend to connect with local backend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], # In production, replace "*" with your Vercel URL
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 '''
 INSTRUCTIONS TO RUN LOCALLY:
@@ -38,51 +24,28 @@ logger = logging.getLogger(__name__)
 SERVICE_DIR = Path(__file__).parent
 os.chdir(SERVICE_DIR)
 
-# Load DATABASE_URL from the shared database .env file
-DB_ENV_FILE = SERVICE_DIR / "../../packages/database/.env"
-load_dotenv(dotenv_path=DB_ENV_FILE)
-
 config = Dynaconf(settings_files=[str(SERVICE_DIR / "config.toml")], environments=False)
 authenticator = MOSIPAuthenticator(config=config)
 
-# database config
-DATABASE_URL: str = os.environ.get("DATABASE_URL") or config.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError(
-        "DATABASE_URL is not set. Add it to packages/database/.env or export it as an environment variable."
-    )
-
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ScanRequest(BaseModel):
     qr_data: str
 
 class ScanResponse(BaseModel):
     status: str  # "verified" | "rejected" | "error"
-    led: str
     uin: str | None = None
     name: str | None = None
     message: str | None = None
 
-# inserts a verified user into the user table in db
-# def save_verified_user(uin: str, name: str) -> None:
-    # try:
-    #     conn = psycopg2.connect(DATABASE_URL)
-    #     try:
-    #         with conn:                        # auto-commit on success, rollback on exception
-    #             with conn.cursor() as cur:
-    #                 cur.execute(
-    #                     """
-    #                     INSERT INTO "user" (uin_philsys, name, user_role)
-    #                     VALUES (%s, %s, 'User')
-    #                     ON CONFLICT (uin_philsys) DO NOTHING
-    #                     """,
-    #                     (int(uin), name[:100]),   # cast UIN to int; truncate name to VarChar(100)
-    #                 )
-    #     finally:
-    #         conn.close()
-    # except Exception as e:
-    #     logger.error(f"user table write failed: {e}")
 
 def parse_dob(raw_dob: str) -> str:
     """Convert 'July 14, 1986' → '1986/07/14', or return as-is if already in 'YYYY/MM/DD'."""
@@ -135,7 +98,7 @@ async def verify(body: ScanRequest):
         qr = parse_qr(body.qr_data)
     except ValueError as e:
         logger.error(f"QR parse error: {e}")
-        return ScanResponse(status="error", led="Red", message=str(e))
+        return ScanResponse(status="error", message=str(e))
 
     uin, dob, name = qr["uin"], qr["dob"], qr["name"]
     logger.info(f"Parsed — UIN: {uin}  DOB: {dob}  Name: {name}")
@@ -154,15 +117,10 @@ async def verify(body: ScanRequest):
         verified: bool = response_body.get("response", {}).get("authStatus", False)
     except Exception as e:
         logger.error(f"MOSIP auth error: {e}")
-        return ScanResponse(status="error", led="Red", uin=uin, name=name, message=str(e))
+        return ScanResponse(status="error", uin=uin, name=name, message=str(e))
 
     status = "verified" if verified else "rejected"
-    led = "Blue"    if verified else "Red"
 
     logger.info(f"Verification result for UIN {uin}: {status.upper()}")
-    logger.info(f"Arduino LED command: {led}")
-    
-    # if verified:
-    #     save_verified_user(uin, name or "")
 
-    return ScanResponse(status=status, led=led, uin=uin, name=name)
+    return ScanResponse(status=status, uin=uin, name=name)

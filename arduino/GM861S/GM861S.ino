@@ -6,7 +6,7 @@
 
 #define WIFI_SSID "Putok ni Nayeon"
 #define WIFI_PASSWORD "jihyodorant"
-#define SERVER_URL "https://iphilsafe.vercel.app/" 
+#define SERVER_URL "http://10.13.13.21:3000" // "https://iphilsafe.vercel.app/" 
 
 #define RED_PIN           D10
 #define GREEN_PIN         D2
@@ -114,7 +114,7 @@ void setup() {
   // reset locker state on startup
 }
 
-void statusToLED(String status) {
+String statusToLED(String status) {
   if (status == "IDLE") {
     return "Green";
   } else if (status == "OCCUPIED") {
@@ -128,7 +128,7 @@ void statusToLED(String status) {
   }
 }
 
-void checkScanner() {
+String checkScanner() {
   if (scanner.available()) {
     setColor("Cyan"); // qr processing color
     String scannedData = "";
@@ -187,7 +187,7 @@ String sendApiRequest(String endpoint, String payload) { // master api request f
   return response; // return http response 
 }
 
-void createJSONPayload(String qr_data = "") {
+String createJSONPayload(String qr_data = "") {
   JsonDocument doc;
   doc["locker_id"] = locker_id;
   doc["qr_data"] = qr_data;
@@ -203,7 +203,7 @@ String sendGetStatus() {
 
   if (response != "") {
     JsonDocument doc;
-    deserializeJson(doc, response);
+    DeserializationError error = deserializeJson(doc, response);
     
     if (!error) {
         String lockerStatus = doc["status"].as<String>();
@@ -238,6 +238,15 @@ void sendStartRegister() {
   
   if (response != "") {
     setColor("Yellow"); // register color
+  }
+}
+
+void sendFinishRegister() {
+  String payload = createJSONPayload();
+  String response = sendApiRequest("api/locker/finish-reg/", payload);
+  
+  if (response != "") {
+    flashColor("Blue", 2, 300); // occupied color
   }
 }
 
@@ -311,11 +320,11 @@ bool isDoorOpen() {
 }
 
 void loop() {
-  // Periodically check weight every 10 seconds
-  if (millis() - lastWeightCheck >= 10000) {
-    sendUpdateWeight();
-    lastWeightCheck = millis();
-  }
+  // // Periodically check weight every 10 seconds
+  // if (millis() - lastWeightCheck >= 10000) {
+  //   sendUpdateWeight();
+  //   lastWeightCheck = millis();
+  // }
 
   if (currentState == "IDLE") {
     String qr_scanned = checkScanner();
@@ -326,6 +335,7 @@ void loop() {
     }
     if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, switch to register mode
       sendStartRegister();
+      delay(500);
       updateCurrentState();
       delay(500);
     }
@@ -337,7 +347,7 @@ void loop() {
       updateCurrentState();
     }
     if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, end register mode
-      sendStartRegister();
+      sendFinishRegister();
       updateCurrentState();
       delay(500);
     }
