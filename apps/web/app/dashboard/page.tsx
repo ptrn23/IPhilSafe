@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -49,6 +49,11 @@ export default function Dashboard() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [lockers, setLockers] = useState<LockerData[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [logsLoading, setLogsLoading] = useState(true);
+  
+  const isFetchingRef = useRef(false);
 
   useEffect(() => {
     const savedSession = localStorage.getItem('iphilsafe_session');
@@ -62,33 +67,83 @@ export default function Dashboard() {
     // ADDED
   const fetchLockersData = useCallback(async () => {
     if (!session) return;
+
     try {
-      const id = session.uin || "10101"; 
+      setLoading(true);
+      setError(null);
+
       const res = await fetch(`/api/get-lockers`, {
         method: "POST",
         headers:{ "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: String(id) }),
+        body: JSON.stringify({ 
+          user_id: session.role === 'ADMIN' ? null : session.uin,
+          role: session.role
+        }),
       });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch lockers");
+      }
+
       const data = await res.json();
-      
       const fetchedLockers = Array.isArray(data) ? data : (data.lockers || []);
       setLockers(fetchedLockers);
-    } catch (error) {
-      console.error("Failed to fetch lockers:", error);
+
+    } catch (err) {
+      console.error(err);
+      setError("Failed to fetch lockers.");
+    } finally {
+      setLoading(false);
     }
+  }, [session]);
+
+  const fetchLogsData = useCallback(async () => {
+    if (!session) return;
+
+    try {
+      setLogsLoading(true);
+      const res = await fetch(`/api/get-audit-logs`, {
+        method: "POST",
+        headers:{ "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          user_id: session.uin,
+          role: session.role
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to fetch logs");
+      }
+
+      const data = await res.json();
+      const fetchedLogs = Array.isArray(data) ? data : (data.logs || []);
+      setLogs(fetchedLogs);
+      } catch (err) {
+        console.error("Failed to fetch logs:", err);
+      } finally {
+        setLogsLoading(false);
+      }
   }, [session]);
 
   useEffect(() => {
     if (!session) return;
 
-    fetchLockersData(); 
+    fetchLockersData();
+    fetchLogsData();
 
-    const intervalId = setInterval(() => {
-      fetchLockersData();
+    const intervalId = setInterval(async () => {
+      if (isFetchingRef.current) return;
+      
+      isFetchingRef.current = true;
+
+      Promise.all([fetchLockersData(), fetchLogsData()])
+        .finally(() => {
+          isFetchingRef.current = false;
+        });
     }, 3000);
 
     return () => clearInterval(intervalId);
-  }, [session, fetchLockersData]);
+  }, [session, fetchLockersData, fetchLogsData]);
     
   const hasTamperedLocker = lockers.some(l => l.state === 'TAMPERED');
 
@@ -105,7 +160,7 @@ export default function Dashboard() {
   // };
 
   // const addUser = async () => {
-  //   const qrdata = JSON.stringify({ subject: {
+  //   const qr_data = JSON.stringify({ subject: {
   //     uin: "4104961936",
   //     dob: "2004/02/17", //  check format
   //     name: "Cellin Louise Cheng"
@@ -114,7 +169,7 @@ export default function Dashboard() {
   //   const res = await fetch(`/api/locker/add-user`, {
   //     method: "POST",
   //     headers:{ "Content-Type": "application/json" },
-  //     body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+  //     body: JSON.stringify({ qr_data: qr_data, locker_id: lockerid }),
   //   });
   //   const data = await res.json();
   //   console.log("🗄️| added lockers:", data);
@@ -170,7 +225,7 @@ export default function Dashboard() {
   //   const res = await fetch(`/api/locker/open-locker`, {
   //     method: "POST",
   //     headers:{ "Content-Type": "application/json" },
-  //     body: JSON.stringify({ qrData: qrdata, locker_id: lockerid }),
+  //     body: JSON.stringify({ qr_data: qr_data, locker_id: lockerid }),
   //   });
   //   const data = await res.json();
   //   console.log(`🔒| open locker ${lockerid} for user ${JSON.parse(qrdata).subject.uin} :`, data);
@@ -472,8 +527,12 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {lockers.length === 0 ? (
-          <p className="text-slate-500 col-span-full">Fetching lockers from database...</p>
+        {error ? (
+          <p className="text-red-500 col-span-full">{error}</p>
+        ) : loading ? (
+          <p className="text-slate-500 col-span-full">Fetching lockers...</p>
+        ) : lockers.length === 0 ? (
+          <p className="text-slate-500 col-span-full">No lockers found.</p>
         ) : (
           lockers.map((locker) => (
             <Card key={locker.id} className="shadow-sm border-slate-200">
@@ -509,7 +568,13 @@ export default function Dashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {logs.length === 0 ? (
+                {logsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center text-slate-500 py-8">
+                      Fetching logs...
+                    </TableCell>
+                  </TableRow>
+                ) : logs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={3} className="text-center text-slate-500 py-8">
                       No events recorded yet.
