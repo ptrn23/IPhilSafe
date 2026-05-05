@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from "@repo/db";
+import { prisma, Locker } from "@repo/db";
 import { get_locker_state } from "../utils";
 
 export async function POST(
@@ -25,7 +25,29 @@ export async function POST(
 
     // get lockers
     const lockers =  (user.userRole == "Admin") // all locker if admin
-                    ? await prisma.locker.findMany() 
+                    ? await prisma.locker.findMany({
+                      select:{
+                        lockerId: true,
+                        weight: true,
+                        users: {
+                          select: {
+                            user:{
+                              select:{
+                                name: true
+                              }
+                            }
+                          },
+                          orderBy:{
+                            user:{
+                              name:`asc`
+                            }
+                          }
+                        }
+                      },
+                      orderBy:{
+                        lockerId: `asc`
+                      }
+                    }) 
                     : (user.userRole == "User") // all locker of user only if user
                     ? await prisma.locker.findMany({
                         where: {
@@ -39,6 +61,9 @@ export async function POST(
                           lockerId: true,
                           weight: true,
                         },
+                        orderBy:{
+                          lockerId: `asc`
+                        }
                       })
                       : null;
     if (!lockers){
@@ -46,11 +71,12 @@ export async function POST(
     }
     // get locker states
     const res = await Promise.all(
-      lockers.map(async (l) => {
+      lockers.map(async (l:any) => {
         return {
         locker_id : l.lockerId,
         weight : l.weight,
-        status : get_locker_state(l),
+        status : await get_locker_state(l),
+        user: l.users ?? []
         }
       })
     ) 
