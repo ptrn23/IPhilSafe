@@ -76,7 +76,7 @@ export async function POST(
         locker_id : l.lockerId,
         weight : l.weight,
         status : await get_locker_state(l),
-        user: l.users ?? []
+        users: l.users ?? []
         }
       })
     ) 
