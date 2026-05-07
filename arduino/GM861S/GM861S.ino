@@ -6,7 +6,7 @@
 
 #define WIFI_SSID "Putok ni Nayeon"
 #define WIFI_PASSWORD "jihyodorant"
-#define SERVER_URL "http://10.13.13.21:3000" // "https://iphilsafe.vercel.app/" 
+#define SERVER_URL  "https://iphilsafe.vercel.app" //  "http://172.20.10.4:3000"// 
 
 #define RED_PIN           D10
 #define GREEN_PIN         D2
@@ -98,20 +98,20 @@ void connectToWiFi() {
 void setup() {
   Serial.begin(115200);
   scanner.begin(9600); 
-  delay(1000);
-  WiFi.begin(ssid, password);
-  connectToWiFi();
+  
+  pinMode(RED_PIN, OUTPUT);
+  pinMode(GREEN_PIN, OUTPUT);
+  pinMode(BLUE_PIN, OUTPUT);
 
   digitalWrite(LOCK_PIN, HIGH);
   pinMode(LOCK_PIN, OUTPUT);
   pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 
-  pinMode(RED_PIN, OUTPUT);
-  pinMode(GREEN_PIN, OUTPUT);
-  pinMode(BLUE_PIN, OUTPUT);
+  delay(1000);
 
-  // reset locker state on startup
+  connectToWiFi();
+  updateCurrentState();
 }
 
 String statusToLED(String status) {
@@ -176,7 +176,19 @@ String sendApiRequest(String endpoint, String payload) { // master api request f
   if (httpResponseCode == 200) {
     response = http.getString();
   } else if (httpResponseCode > 0) {
-    flashColor("Red", 2, 300); // server error (4xx/5xx)
+    if (httpResponseCode == 400) {
+      flashColor("Red", 2, 300); // bad request color
+    } else if (httpResponseCode == 401) {
+      flashColor("Red", 3, 300); // unauthorized color
+    } else if (httpResponseCode == 404) {
+      flashColor("Red", 4, 300); // not found color
+    } else if (httpResponseCode == 409) {
+      flashColor("Red", 5, 300); // conflict color
+    } else if (httpResponseCode == 500) {
+      flashColor("Red", 6, 300); // server error color
+    } else {
+      flashColor("Pink", 2, 300); // unknown http error color
+    }
     setColor(currentColor);
   } else {
     flashColor("White", 2, 300); // network error
@@ -199,7 +211,7 @@ String createJSONPayload(String qr_data = "") {
 
 String sendGetStatus() {
   String payload = createJSONPayload();
-  String response = sendApiRequest("api/locker/get-status/", payload);
+  String response = sendApiRequest("/api/locker/get-status", payload);
 
   if (response != "") {
     JsonDocument doc;
@@ -234,8 +246,8 @@ void openLocker() {
 
 void sendStartRegister() {
   String payload = createJSONPayload();
-  String response = sendApiRequest("api/locker/start-reg/", payload);
-  
+  String response = sendApiRequest("/api/locker/start-reg", payload);
+
   if (response != "") {
     setColor("Yellow"); // register color
   }
@@ -243,7 +255,7 @@ void sendStartRegister() {
 
 void sendFinishRegister() {
   String payload = createJSONPayload();
-  String response = sendApiRequest("api/locker/finish-reg/", payload);
+  String response = sendApiRequest("/api/locker/finish-reg", payload);
   
   if (response != "") {
     flashColor("Blue", 2, 300); // occupied color
@@ -252,7 +264,7 @@ void sendFinishRegister() {
 
 void sendQRAddUser(String qrPayload) {
   String payload = createJSONPayload(qrPayload);
-  String response = sendApiRequest("api/locker/add-user/", payload);
+  String response = sendApiRequest("/api/locker/add-user", payload);
 
   if (response != "") {
     flashColor("Green", 2, 300); // success color
@@ -263,7 +275,7 @@ void sendQRAddUser(String qrPayload) {
 
 void sendOpenLocker(String qrPayload) {
   String payload = createJSONPayload(qrPayload);
-  String response = sendApiRequest("api/locker/open-locker/", payload);
+  String response = sendApiRequest("/api/locker/open-locker", payload);
 
   if (response != "") {
     JsonDocument doc;
@@ -282,7 +294,7 @@ void sendOpenLocker(String qrPayload) {
 
 void sendClosedLocker() {
   String payload = createJSONPayload();
-  String response = sendApiRequest("api/locker/close-locker/", payload);
+  String response = sendApiRequest("/api/locker/close-locker", payload);
   
   if (response != "") {
     flashColor("Blue", 2, 300); // closed locker blink
@@ -293,7 +305,7 @@ void sendClosedLocker() {
 void sendUnregister() {
   setColor("Orange"); // start unregister color
   String payload = createJSONPayload();
-  String response = sendApiRequest("api/locker/unreg/", payload);
+  String response = sendApiRequest("/api/locker/unreg", payload);
   
   if (response != "") {
     flashColor("Green", 2, 300); // success color
@@ -304,7 +316,7 @@ void sendUnregister() {
 void sendUpdateWeight() {
   updateWeight(); // placeholder for future load cell integration
   String payload = createJSONPayload();
-  String response = sendApiRequest("api/locker/update-weight/", payload);
+  String response = sendApiRequest("/api/locker/update-weight", payload);
   
   if (response != "") {
     // weight updated successfully, no need to flash color
@@ -330,8 +342,8 @@ void loop() {
     String qr_scanned = checkScanner();
     if (qr_scanned.length() > 0) { // new qr scanned, switch to register mode
       sendStartRegister();
-      sendQRAddUser(qr_scanned);
       updateCurrentState(); // expected to switch to REGISTER
+      sendQRAddUser(qr_scanned);
     }
     if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, switch to register mode
       sendStartRegister();
