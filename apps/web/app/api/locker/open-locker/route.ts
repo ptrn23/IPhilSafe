@@ -11,8 +11,8 @@ export async function POST(
       return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
     }
     const user_data = JSON.parse(qr_data);
-    const uin = user_data.subject.uin;
-    const name = user_data.subject.name;
+    const uin = user_data.uin;
+    const name = user_data.name;
     const l_id = Number(locker_id);
     // Check if locker id is a number (Note: 0 is a valid number!)
     if (isNaN(l_id)) {
