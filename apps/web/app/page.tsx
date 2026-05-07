@@ -6,6 +6,31 @@ import QRScanner from '@/components/QRScanner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+
+// ----------------------------------------------------------------
+// Add or remove dev users here — buttons are auto-generated
+// ----------------------------------------------------------------
+const DEV_USERS: { label: string; uin: string }[] = [
+  { label: "Cellin (4104961936)", uin: "4104961936" },
+  { label: "Paul (4960564187)", uin: "4960564187" },
+  // { label: "Name (UIN)", uin: "UIN" },
+];
+
+const buildDevQRPayload = (uin: string, label: string): string =>
+  JSON.stringify({
+    uin,
+    name: label,
+    dob: "2000/01/01",
+    file: "",
+    address_line1: "",
+    address_line2: "",
+    address_line3: "",
+    location1: "",
+    location3: "",
+    zone: "",
+    postal_code: "",
+  });
 
 export default function LandingPage() {
   const router = useRouter();
@@ -13,8 +38,10 @@ export default function LandingPage() {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  // ----------------------------------------------------------------
+  // If session cookie already exists, skip to dashboard
+  // ----------------------------------------------------------------
   useEffect(() => {
-    // If a session cookie already exists, go straight to dashboard
     async function checkSession() {
       const res = await fetch('/api/session');
       if (res.ok) router.push('/dashboard');
@@ -22,14 +49,15 @@ export default function LandingPage() {
     checkSession();
   }, [router]);
 
+  // ----------------------------------------------------------------
+  // Core login handler — used by scanner, quick login, and manual input
+  // ----------------------------------------------------------------
   const handleInitialScan = async (rawQrString: string) => {
     setError('');
     setIsLoading(true);
     try {
-      // 1. Validate the QR string is parseable before sending
       JSON.parse(rawQrString); // throws if malformed
 
-      // 2. Send the raw QR string to the login API
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,8 +71,6 @@ export default function LandingPage() {
         return;
       }
 
-      // 3. Session cookie is set by the API via Set-Cookie header.
-      //    Just redirect — no localStorage needed.
       router.push('/dashboard');
 
     } catch (err) {
@@ -63,6 +89,7 @@ export default function LandingPage() {
         </CardHeader>
 
         <CardContent className="space-y-8">
+          {/* QR Camera Scanner */}
           <QRScanner onScanSuccess={handleInitialScan} />
 
           <div className="relative">
@@ -72,23 +99,49 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="space-y-3 bg-slate-100 p-4 rounded-xl border border-slate-200">
+          {/* Developer Bypass */}
+          <div className="space-y-4 bg-slate-100 p-4 rounded-xl border border-slate-200">
             <p className="text-xs font-bold text-slate-500 uppercase">Developer Bypass</p>
-            <Input
-              placeholder='Paste JSON String here (e.g. {"uin": "1234-5678"})'
-              value={devInput}
-              onChange={(e) => setDevInput(e.target.value)}
-              className="font-mono text-xs"
-              disabled={isLoading}
-            />
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={() => handleInitialScan(devInput)}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Verifying...' : 'Simulate Scan'}
-            </Button>
+
+            {/* Quick login buttons */}
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400">Quick Login</p>
+              <div className="flex flex-col gap-2">
+                {DEV_USERS.map((user) => (
+                  <Button
+                    key={user.uin}
+                    variant="secondary"
+                    className="w-full justify-start font-mono text-xs"
+                    disabled={isLoading}
+                    onClick={() => handleInitialScan(buildDevQRPayload(user.uin, user.label))}
+                  >
+                    {isLoading ? "Verifying..." : `→ ${user.label}`}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Manual JSON input */}
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400">Manual JSON Input</p>
+              <Input
+                placeholder='Paste JSON String here (e.g. {"uin": "1234-5678"})'
+                value={devInput}
+                onChange={(e) => setDevInput(e.target.value)}
+                className="font-mono text-xs"
+                disabled={isLoading}
+              />
+              <Button
+                variant="secondary"
+                className="w-full"
+                onClick={() => handleInitialScan(devInput)}
+                disabled={isLoading}
+              >
+                {isLoading ? "Verifying..." : "Simulate Scan"}
+              </Button>
+            </div>
           </div>
 
           {error && (
