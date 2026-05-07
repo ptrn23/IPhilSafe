@@ -71,54 +71,59 @@ export async function create_audit_log(l_id: number, sys_type: sys_log_type, msg
 // Define the expected response structure from Python backend
 export interface VerifyResult {
   status: "verified" | "rejected" | "error";
-  led: "Green" | "Red";
-  message?: string;
-  // Add any other fields returned, like:
-  // uin?: string;
+  led: "Blue" | "Red";
+  uin: string | null;
+  name: string | null;
+  message: string | null;
 }
 
-/**
- * Sends scanned QR data to the Python MOSIP backend for cryptographic verification.
- * * @param qrData The raw string data scanned from the QR code.
- * @returns A promise resolving to the VerifyResult.
- */
 export async function verifyWithMOSIP(qrData: string): Promise<VerifyResult> {
   if (!qrData) {
-    return { status: "error", led: "Red", message: "No QR data provided" };
+    return { status: "error", led: "Red", uin: null, name: null, message: "No QR data provided" };
   }
 
-  // Use the environment variable in production, fallback to localhost for development
-  const PYTHON_BACKEND_URL = process.env.PYTHON_API_URL || "http://127.0.0.1:8000";
+  // ----------------------------------------------------------------
+  // DEV BYPASS — set MOSIP_BYPASS=true in .env.local to skip MOSIP
+  // ----------------------------------------------------------------
+  if (process.env.MOSIP_BYPASS === "true") {
+    console.log("⚠️  MOSIP_BYPASS enabled — skipping real verification");
+    let parsed: { uin?: string; name?: string };
+    try {
+      parsed = JSON.parse(qrData);
+    } catch {
+      return { status: "error", led: "Red", uin: null, name: null, message: "Invalid JSON in bypass mode" };
+    }
+    return {
+      status: "verified",
+      led: "Blue",
+      uin: parsed.uin ?? null,
+      name: parsed.name ?? null,
+      message: null,
+    };
+  }
+
+  const PYTHON_BACKEND_URL = process.env.PYTHON_API_URL || "https://mosip-service.fly.dev";
+  console.log("🔍 MOSIP | qrData received:", qrData);
 
   try {
     const response = await fetch(`${PYTHON_BACKEND_URL}/api/verify`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      // Ensure the key 'qr_data' perfectly matches your Python Pydantic model
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ qr_data: qrData }),
     });
 
     if (!response.ok) {
-      console.error(`Python backend rejected the request with status: ${response.status}`);
-      return { 
-        status: "error", 
-        led: "Red", 
-        message: `Backend HTTP error: ${response.status}` 
-      };
+      console.error(`MOSIP backend rejected the request with status: ${response.status}`);
+      return { status: "error", led: "Red", uin: null, name: null, message: `Backend HTTP error: ${response.status}` };
     }
 
     const data = await response.json();
+    console.log("🔍 MOSIP | response:", data);
     return data as VerifyResult;
 
   } catch (error) {
-    console.error("Failed to connect to the Python backend:", error);
-    return { 
-      status: "error", 
-      led: "Red", 
-      message: "Could not reach the MOSIP microservice" 
-    };
+    console.error("Failed to connect to the MOSIP backend:", error);
+    return { status: "error", led: "Red", uin: null, name: null, message: "Could not reach the MOSIP microservice" };
   }
 }
 
