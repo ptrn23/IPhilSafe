@@ -167,41 +167,37 @@ export default function Dashboard() {
     return () => stopPolling(); // cleanup on unmount
   }, []);
 
-  // ----------------------------------------------------------------
-  // Fetch lockers from API
-  // ----------------------------------------------------------------
-  const fetchLockers = async (uid: string) => {
-    setLockersLoading(true);
+  // --- FETCH LOGS ---
+  const fetchRealAuditLogs = async (uin: string) => {
+    setLogsLoading(true);
     try {
-      const res = await fetch(`/api/get-lockers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid }),
+      const res = await fetch(`/api/get-audit-logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: uin })
       });
-      const data: LockerAPIData[] = await res.json();
-      setLockers(data);
 
-      // Seed sim states from real API data
-      const initialSimStates: Record<string, LockerSimState> = {};
-      data.forEach((l) => {
-        initialSimStates[String(l.locker_id)] = {
-          locker_id: String(l.locker_id),
-          state: l.status,
-          currentWeight: l.weight,
-          ownerUINs: [],
-          previousState: l.status,
-        };
-      });
-      setSimStates(initialSimStates);
+      if (!res.ok) throw new Error("Failed to fetch logs");
+      
+      const data: LogEntry[] = await res.json();
 
-      // Auto-select first locker for admin simulator
-      if (data.length > 0) setSelectedLockerId(String(data[0]?.locker_id) ?? null);
-    } catch (err) {
-      console.error("Failed to fetch lockers:", err);
+      const sortedLogs = data.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      setLogs(sortedLogs.slice(0, 50));
+    } catch (error) {
+      console.error("Error fetching logs:", error);
     } finally {
-      setLockersLoading(false);
+      setLogsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (session?.uin) {
+      fetchRealAuditLogs(session.uin);
+    }
+  }, [session?.uin]);
 
   // ----------------------------------------------------------------
   // Logout
