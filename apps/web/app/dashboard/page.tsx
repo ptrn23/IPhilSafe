@@ -28,10 +28,12 @@ interface LockerSimState {
 }
 
 interface LogEntry {
-  id: string;
-  timestamp: string;
-  action: string;
-  details: string;
+  logId: string;          // log_id
+  createdAt: string;      // created_at
+  lockerId: number;       // locker_id
+  logMsg: string;         // log_msg
+  sysType: string;        // sys_type
+  user_id: string | null; // user_id
 }
 
 interface UserSession {
@@ -64,6 +66,7 @@ export default function Dashboard() {
   const [simStates, setSimStates] = useState<Record<string, LockerSimState>>({});
   const [selectedLockerId, setSelectedLockerId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   // Single source of truth for polling
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -161,9 +164,40 @@ export default function Dashboard() {
     }
 
     checkSession();
-
     return () => stopPolling(); // cleanup on unmount
   }, []);
+
+  // --- FETCH LOGS ---
+  const fetchRealAuditLogs = async (uin: string) => {
+    setLogsLoading(true);
+    try {
+      const res = await fetch(`/api/get-audit-logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: uin })
+      });
+
+      if (!res.ok) throw new Error("Failed to fetch logs");
+      
+      const data: LogEntry[] = await res.json();
+
+      const sortedLogs = data.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+      setLogs(sortedLogs.slice(0, 50));
+    } catch (error) {
+      console.error("Error fetching logs:", error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (session?.uin) {
+      fetchRealAuditLogs(session.uin);
+    }
+  }, [session?.uin]);
 
   // ----------------------------------------------------------------
   // Logout
@@ -283,18 +317,12 @@ export default function Dashboard() {
   // UI Simulator
   // ----------------------------------------------------------------
   const pushHardwareEvent = (locker_id: string, action: string, newState: Partial<LockerSimState>, logDetails: string) => {
-    setSimStates(prev => ({
-      ...prev,
-      [locker_id]: { ...(prev[locker_id] ?? {}), ...newState } as LockerSimState
-    }));
-    const newLog: LogEntry = {
-      id: Math.random().toString(36).substring(2, 9),
-      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-      action,
-      details: logDetails,
-    };
-    setLogs(prevLogs => [newLog, ...prevLogs]);
-  };
+  setSimStates(prev => ({
+    ...prev,
+    [locker_id]: { ...(prev[locker_id] ?? {}), ...newState } as LockerSimState
+  }));
+  setLogs(prevLogs => [...prevLogs]);
+};
 
   const generateRandomUIN = () => `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
   const generateRandomWeight = () => +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
@@ -474,30 +502,67 @@ export default function Dashboard() {
 
       {/* Logs */}
       <div className="mt-8">
-        <h2 className="text-lg font-bold text-slate-900 mb-4">Logs</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900">Logs</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => fetchAuditLogs()}
+            disabled={logsLoading}
+            className="border-slate-300 text-slate-700 hover:bg-slate-100"
+          >
+            {logsLoading ? "Refreshing..." : "Refresh"}
+          </Button>
+        </div>
+        
         <Card className="shadow-sm border-slate-200">
-          <ScrollArea className="h-[250px] rounded-md border-0">
+          <ScrollArea className="h-[400px] rounded-md border-0">
             <Table>
-              <TableHeader className="bg-slate-100 sticky top-0">
+              <TableHeader className="bg-slate-100 sticky top-0 z-10 shadow-sm">
                 <TableRow>
-                  <TableHead className="w-[120px]">Timestamp</TableHead>
-                  <TableHead className="w-[150px]">Action</TableHead>
-                  <TableHead>Details</TableHead>
+                  <TableHead className="w-[80px]">ID</TableHead>
+                  <TableHead className="w-[180px]">Timestamp</TableHead>
+                  <TableHead className="w-[100px]">Locker</TableHead>
+                  <TableHead className="w-[150px]">Type</TableHead>
+                  <TableHead className="w-[150px]">User ID</TableHead>
+                  <TableHead>Message</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {logs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-slate-500 py-8">
-                      No events recorded yet.
+                    <TableCell colSpan={6} className="text-center text-slate-500 py-12">
+                      {logsLoading ? "Querying audit logs..." : "No logs found for this user."}
                     </TableCell>
                   </TableRow>
                 ) : (
                   logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-mono text-xs text-slate-500">{log.timestamp}</TableCell>
-                      <TableCell className="font-medium text-slate-900">{log.action}</TableCell>
-                      <TableCell className="text-slate-600">{log.details}</TableCell>
+                    <TableRow key={log.logId} className="hover:bg-slate-50/50">
+                      <TableCell className="text-slate-400 font-mono text-xs">
+                        #{log.logId}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-slate-600">
+                        {new Date(log.createdAt).toLocaleString('en-US', { 
+                          month: 'short', 
+                          day: 'numeric', 
+                          hour: '2-digit', 
+                          minute: '2-digit'
+                        })}
+                      </TableCell>
+                      <TableCell className="font-semibold text-slate-700">
+                        L-{log.lockerId}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center px-2 py-1 rounded-md bg-slate-200 text-slate-800 text-[10px] font-bold uppercase tracking-wider">
+                          {log.sysType.replace(/_/g, ' ')}
+                        </span>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-blue-600">
+                        {log.user_id || "SYSTEM"}
+                      </TableCell>
+                      <TableCell className="text-slate-600 text-sm leading-relaxed">
+                        {log.logMsg}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
