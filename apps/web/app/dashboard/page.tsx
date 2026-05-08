@@ -350,9 +350,9 @@ export default function Dashboard() {
     if (!selectedLockerId || !selectedSim) return;
     const newWeight = generateRandomWeight();
     if (selectedSim.state === 'REGISTER') {
-      pushHardwareEvent(selectedLockerId, "Door Closed", { state: 'OCCUPIED', currentWeight: newWeight }, `Initial baseline mass registered at ${newWeight} kg.`);
+      pushHardwareEvent(selectedLockerId, "Door Closed", { state: 'OCCUPIED', currentWeight: newWeight }, `Initial baseline mass registered at ${newWeight} g.`);
     } else if (selectedSim.state === 'OCCUPIED') {
-      pushHardwareEvent(selectedLockerId, "Door Closed", { currentWeight: newWeight }, `Door closed. New baseline mass registered at ${newWeight} kg.`);
+      pushHardwareEvent(selectedLockerId, "Door Closed", { currentWeight: newWeight }, `Door closed. New baseline mass registered at ${newWeight} g.`);
     }
   };
 
@@ -475,7 +475,7 @@ export default function Dashboard() {
                 <CardContent>
                   <div className="flex items-end justify-between mt-2">
                     <div className="text-sm text-slate-500">
-                      <p>Current Load: <span className="font-mono text-slate-900 font-medium">{displayWeight.toFixed(2)} kg</span></p>
+                      <p>Current Load: <span className="font-mono text-slate-900 font-medium">{displayWeight.toFixed(2)} g</span></p>
                       {session.role === 'Admin' && (
                         <p>Owner UINs: <span className="font-mono text-slate-900">{displayOwners.length > 0 ? displayOwners.join(', ') : 'None'}</span></p>
                       )}
