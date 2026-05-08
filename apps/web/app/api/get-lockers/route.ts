@@ -33,7 +33,8 @@ export async function POST(
                           select: {
                             user:{
                               select:{
-                                name: true
+                                name: true,
+                                uinPhilsys: true
                               }
                             }
                           },
