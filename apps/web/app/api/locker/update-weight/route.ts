@@ -15,7 +15,7 @@ export async function POST(
     }
 
     const l_id = Number(locker_id);
-    const w_new = Number(weight);
+    let w_new = Number(weight);
     // Check if weight and locker id is a number (Note: 0 is a valid number!)
     if (isNaN(w_new)) {
       return NextResponse.json({ error: `Value ${w_new} is not a valid number` }, { status: 400 });
@@ -37,6 +37,7 @@ export async function POST(
     }
 
     // tamper logic
+    w_new= w_new < 0 ? 0:  w_new
     const oldWeight = locker.weight ?? 0;
     const weightDrop = Math.abs(oldWeight - w_new);
     const isTampered = tamper_threshold < weightDrop
