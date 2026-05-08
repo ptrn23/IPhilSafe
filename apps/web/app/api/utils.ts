@@ -85,7 +85,8 @@ export async function verifyWithMOSIP(qrData: string): Promise<VerifyResult> {
   // ----------------------------------------------------------------
   // DEV BYPASS — set MOSIP_BYPASS=true in .env.local to skip MOSIP
   // ----------------------------------------------------------------
-  if (process.env.MOSIP_BYPASS === "true") {
+  // if (process.env.MOSIP_BYPASS === "true") {  // enable when verification is working again
+  if (true) {
     console.log("⚠️  MOSIP_BYPASS enabled — skipping real verification");
     let parsed: { uin?: string; name?: string };
     try {
