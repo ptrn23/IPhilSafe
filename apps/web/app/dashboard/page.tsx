@@ -54,7 +54,7 @@ const getStateColor = (state: LockerState | string) => {
   }
 };
 
-const POLL_INTERVAL_MS = 10000;
+const POLL_INTERVAL_MS = 600000;
 
 export default function Dashboard() {
   const router = useRouter();
