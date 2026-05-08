@@ -16,7 +16,7 @@ interface LockerAPIData {
   locker_id: string;
   weight: number;
   status: LockerState;
-  users: string[];
+  users: { name: string }[] | null;
 }
 
 // Local UI simulation layer on top of API data (admin only)
@@ -460,7 +460,7 @@ export default function Dashboard() {
             const sim = simStates[String(locker.locker_id)];
             const displayState = (session.role === 'Admin' && sim) ? sim.state : locker.status;
             const displayWeight = (session.role === 'Admin' && sim) ? sim.currentWeight : locker.weight;
-            const displayOwners = (session.role === 'Admin' && sim) ? sim.ownerUINs : locker.users;
+            const displayOwners = (session.role === 'Admin' && sim) ? sim.ownerUINs : locker.users ? locker.users.map((user: { name: string }) => user.name) : [];
             const isSelected = selectedLockerId === String(locker.locker_id);
 
             return (
@@ -478,7 +478,11 @@ export default function Dashboard() {
                     <div className="text-sm text-slate-500">
                       <p>Current Load: <span className="font-mono text-slate-900 font-medium">{displayWeight.toFixed(2)} kg</span></p>
                       {session.role === 'Admin' && (
-                        <p>Owner UINs: <span className="font-mono text-slate-900">{displayOwners.length > 0 ? displayOwners.join(', ') : 'None'}</span></p>
+                        <p>
+                          Owners: <span className="font-mono text-slate-900">
+                            {displayOwners.length > 0 ? displayOwners.join(', ') : 'None'}
+                          </span>
+                        </p>
                       )}
                     </div>
                     {displayState === 'TAMPERED' && session.role === 'Admin' && (
