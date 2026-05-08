@@ -16,7 +16,7 @@ interface LockerAPIData {
   locker_id: string;
   weight: number;
   status: LockerState;
-  users: { name: string }[] | null;
+  users?: { user: { name: string } }[];
 }
 
 // Local UI simulation layer on top of API data (admin only)
@@ -460,7 +460,7 @@ export default function Dashboard() {
             const sim = simStates[String(locker.locker_id)];
             const displayState = (session.role === 'Admin' && sim) ? sim.state : locker.status;
             const displayWeight = (session.role === 'Admin' && sim) ? sim.currentWeight : locker.weight;
-            const displayOwners = (session.role === 'Admin' && sim) ? sim.ownerUINs : locker.users ? locker.users.map((user: { name: string }) => user.name) : [];
+            const displayOwners = (session.role === 'Admin' && sim) ? sim.ownerUINs : locker.users ? locker.users.map((item: { user: { name: string } }) => item.user.name) : [];
             const isSelected = selectedLockerId === String(locker.locker_id);
 
             return (
