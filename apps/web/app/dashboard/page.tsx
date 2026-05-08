@@ -460,7 +460,7 @@ export default function Dashboard() {
             const sim = simStates[String(locker.locker_id)];
             const displayState = (session.role === 'Admin' && sim) ? sim.state : locker.status;
             const displayWeight = (session.role === 'Admin' && sim) ? sim.currentWeight : locker.weight;
-            const displayOwners = (session.role === 'Admin' && sim) ? sim.ownerUINs : locker.users ? locker.users.map((item: { user: { name: string } }) => item.user.name) : [];
+            const displayOwners = locker.users ? locker.users.map((item: { user: { name: string } }) => item.user.name) : [];
             const isSelected = selectedLockerId === String(locker.locker_id);
 
             return (
