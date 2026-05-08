@@ -212,12 +212,11 @@ export default function Dashboard() {
   // ----------------------------------------------------------------
   // Backend API test calls
   // ----------------------------------------------------------------
-  const addUser = async () => {
-    const qrdata = JSON.stringify({ subject: { uin: "4104961936", dob: "2004/02/17", name: "Cellin Louise Cheng" } });
+  const addUser = async (locker_id:any = 2, qr_data = JSON.stringify({uin: "4104961936", dob: "2004/02/17", name: "Cellin Louise Cheng" } )) => {
     const res = await fetch(`/api/locker/add-user`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ qrData: qrdata, locker_id: 2 }),
+      body: JSON.stringify({ qr_data: qr_data, locker_id: locker_id }),
     });
     const data = await res.json();
     console.log("🗄️| added lockers:", data);
@@ -233,82 +232,81 @@ export default function Dashboard() {
     console.log("📑| audit logs returned:", data);
   };
 
-  const revokeLockerAccess = async () => {
+  const revokeLockerAccess = async (locker_id:any = 2) => {
     const res = await fetch(`/api/locker/revoke-access`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: String(2), user_id: String(10101) }),
+      body: JSON.stringify({ locker_id: locker_id, user_id: String(10101) }),
     });
     const data = await res.json();
     console.log("🚫 | Access for locker revoked:", data);
   };
 
-  const getLockerStatus = async () => {
+  const getLockerStatus = async (locker_id:any = 2) => {
     const res = await fetch(`/api/locker/get-status`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: String(2) }),
+      body: JSON.stringify({ locker_id: locker_id}),
     });
     const data = await res.json();
     console.log(`🗄️| status of locker 2:`, data);
   };
 
-  const openLocker = async () => {
-    const qrdata = JSON.stringify({ subject: { uin: "4104961936", dob: "2004/02/17", name: "Cellin Louise Cheng" } });
+  const openLocker = async (locker_id:any = 2, qr_data = JSON.stringify({ uin: "4104961936", dob: "2004/02/17", name: "Cellin Louise Cheng" } )) => {
     const res = await fetch(`/api/locker/open-locker`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ qrData: qrdata, locker_id: 2 }),
+      body: JSON.stringify({ qr_data: qr_data, locker_id: locker_id }),
     });
     const data = await res.json();
     console.log(`🔒| open locker 2:`, data);
   };
 
-  const startRegistration = async () => {
+  const startRegistration = async (locker_id:any = 2) => {
     const res = await fetch(`/api/locker/start-reg`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: 2 }),
+      body: JSON.stringify({ locker_id: locker_id }),
     });
     const data = await res.json();
     console.log(`🗄️| start registration for locker 2:`, data);
   };
 
-  const unregisterLocker = async () => {
+  const unregisterLocker = async (locker_id:any = 2) => {
     const res = await fetch(`/api/locker/unreg`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: 2, weight: 0 }),
+      body: JSON.stringify({ locker_id: locker_id, weight: 0 }),
     });
     const data = await res.json();
     console.log(`🗄️| unregister locker 2:`, data);
   };
 
-  const updateWeight = async () => {
+  const updateWeight = async (locker_id:any = 2, newWeight:any = 100) => {
     const res = await fetch(`/api/locker/update-weight`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: 2, weight: 0 }),
+      body: JSON.stringify({ locker_id: locker_id, weight: newWeight }),
     });
     const data = await res.json();
     console.log(`🗄️| update weight locker 2:`, data);
   };
 
-  const closeLocker = async () => {
+  const closeLocker = async (locker_id:any = 2, weight:any= 100) => {
     const res = await fetch(`/api/locker/close-locker`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: 2, weight: 100 }),
+      body: JSON.stringify({ locker_id: locker_id, weight: weight }),
     });
     const data = await res.json();
     console.log(`🗄️| close locker 2:`, data);
   };
 
-  const finishReg = async () => {
+  const finishReg = async (locker_id:any = 2) => {
     const res = await fetch(`/api/locker/finish-reg`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: 2 }),
+      body: JSON.stringify({ locker_id: locker_id }),
     });
     const data = await res.json();
     console.log(`🗄️| Finish registration for locker 2:`, data);
@@ -612,16 +610,40 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Button onClick={() => fetchLockers(session.uin)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Lockers</Button>
-              <Button onClick={addUser} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Add User</Button>
-              <Button onClick={revokeLockerAccess} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Revoke Access</Button>
-              <Button onClick={getLockerStatus} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Get Status</Button>
-              <Button onClick={openLocker} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Open Locker</Button>
-              <Button onClick={startRegistration} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Start Reg Period</Button>
-              <Button onClick={finishReg} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Finish Reg Period</Button>
-              <Button onClick={unregisterLocker} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Unregister Locker</Button>
-              <Button onClick={updateWeight} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Update Weight</Button>
+              <Button onClick={() => {
+                const qr_data = prompt("Enter qr data in string form:");
+                if (qr_data != null){
+                  addUser(selectedLockerId, qr_data)
+                }
+                
+              }} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Add User for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => revokeLockerAccess(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Revoke Access for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => getLockerStatus(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Get Status for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => {
+                const qr_data = prompt("Enter qr data in string form:"); 
+                
+                if (qr_data != null){
+                  openLocker(selectedLockerId, qr_data)};
+                }
+              } variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Open Locker for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => {
+                const newWeight = prompt("Enter new weight:");
+                if (newWeight != null){
+                  closeLocker(selectedLockerId, newWeight)
+                }
+              
+              }} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Close Locker for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => startRegistration(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Start Reg Period for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => finishReg(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Finish Reg Period for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => unregisterLocker(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Unregister Locker for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => {
+                const newWeight = prompt("Enter new weight:");
+                if (newWeight != null){
+                  updateWeight(selectedLockerId, newWeight)
+                }
+              
+              }} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Update Weight for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
               <Button onClick={fetchAuditLogs} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Fetch Audit Logs</Button>
-              <Button onClick={closeLocker} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Close Locker</Button>
             </div>
           </div>
 
