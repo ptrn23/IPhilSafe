@@ -35,7 +35,7 @@ export async function POST(
         }
     })
     if (!users){
-      create_audit_log(l_id, 'Registration_Finished', 'Registration Finished')
+      create_audit_log(l_id, 'Registration_Finished', 'Unsuccessfull registration. No users added')
       return NextResponse.json({ error: "No users added " }, { status: 409 });
     }
 
