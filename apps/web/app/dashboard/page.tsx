@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -51,21 +51,94 @@ const getStateColor = (state: LockerState | string) => {
   }
 };
 
+const POLL_INTERVAL_MS = 10000;
+
 export default function Dashboard() {
   const router = useRouter();
 
   const [session, setSession] = useState<UserSession | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
-
   const [lockers, setLockers] = useState<LockerAPIData[]>([]);
   const [lockersLoading, setLockersLoading] = useState(true);
+  const [lockersRefreshing, setLockersRefreshing] = useState(false);
   const [simStates, setSimStates] = useState<Record<string, LockerSimState>>({});
   const [selectedLockerId, setSelectedLockerId] = useState<string | null>(null);
-
   const [logs, setLogs] = useState<LogEntry[]>([]);
 
+  // Single source of truth for polling
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const sessionUinRef = useRef<string | null>(null);
+
   // ----------------------------------------------------------------
-  // Session check
+  // Polling — one function, one interval
+  // ----------------------------------------------------------------
+  const stopPolling = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  const startPolling = () => {
+    stopPolling(); // always clear before starting to prevent duplicates
+    intervalRef.current = setInterval(() => {
+      if (sessionUinRef.current) {
+        fetchLockers(sessionUinRef.current, true);
+      }
+    }, POLL_INTERVAL_MS);
+  };
+
+  // ----------------------------------------------------------------
+  // Fetch lockers
+  // ----------------------------------------------------------------
+  const fetchLockers = async (uid: string, background = false) => {
+    if (background) {
+      setLockersRefreshing(true);
+    } else {
+      setLockersLoading(true);
+    }
+    try {
+      const res = await fetch(`/api/get-lockers`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: uid }),
+      });
+      const raw = await res.json();
+      const data: LockerAPIData[] = Array.isArray(raw) ? raw : [];
+      setLockers(data);
+
+      setSimStates(prev => {
+        const next = { ...prev };
+        data.forEach((l) => {
+          const key = String(l.locker_id);
+          const existing = prev[key];
+          if (!existing || existing.state !== l.status) {
+            next[key] = {
+              locker_id: key,
+              state: l.status,
+              currentWeight: l.weight,
+              ownerUINs: existing?.ownerUINs ?? [],
+              previousState: l.status,
+            } as LockerSimState;
+          }
+        });
+        return next;
+      });
+
+      if (data.length > 0 && !selectedLockerId) {
+        setSelectedLockerId(String(data[0]?.locker_id) ?? null);
+      }
+
+    } catch (err) {
+      console.error("Failed to fetch lockers:", err);
+    } finally {
+      setLockersLoading(false);
+      setLockersRefreshing(false);
+    }
+  };
+
+  // ----------------------------------------------------------------
+  // Session check — runs once, starts polling after first fetch
   // ----------------------------------------------------------------
   useEffect(() => {
     async function checkSession() {
@@ -76,64 +149,33 @@ export default function Dashboard() {
           return;
         }
         const data = await res.json();
-        const userSession = { uin: data.user_id, role: data.role };
-        setSession(userSession);
+        sessionUinRef.current = data.user_id;
+        setSession({ uin: data.user_id, role: data.role });
         await fetchLockers(data.user_id);
+        startPolling(); // starts exactly once, after initial fetch
       } catch {
         router.push('/');
       } finally {
         setSessionLoading(false);
       }
     }
+
     checkSession();
-  }, [router]);
 
-  // ----------------------------------------------------------------
-  // Fetch lockers from API
-  // ----------------------------------------------------------------
-  const fetchLockers = async (uid: string) => {
-    setLockersLoading(true);
-    try {
-      const res = await fetch(`/api/get-lockers`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid }),
-      });
-      const data: LockerAPIData[] = await res.json();
-      setLockers(data);
-
-      // Seed sim states from real API data
-      const initialSimStates: Record<string, LockerSimState> = {};
-      data.forEach((l) => {
-        initialSimStates[String(l.locker_id)] = {
-          locker_id: String(l.locker_id),
-          state: l.status,
-          currentWeight: l.weight,
-          ownerUINs: [],
-          previousState: l.status,
-        };
-      });
-      setSimStates(initialSimStates);
-
-      // Auto-select first locker for admin simulator
-      if (data.length > 0) setSelectedLockerId(String(data[0]?.locker_id) ?? null);
-    } catch (err) {
-      console.error("Failed to fetch lockers:", err);
-    } finally {
-      setLockersLoading(false);
-    }
-  };
+    return () => stopPolling(); // cleanup on unmount
+  }, []);
 
   // ----------------------------------------------------------------
   // Logout
   // ----------------------------------------------------------------
   const handleLogout = async () => {
+    stopPolling();
     await fetch('/api/logout', { method: 'POST' });
     router.push('/');
   };
 
   // ----------------------------------------------------------------
-  // Backend API test calls (admin panel)
+  // Backend API test calls
   // ----------------------------------------------------------------
   const addUser = async () => {
     const qrdata = JSON.stringify({ subject: { uin: "4104961936", dob: "2004/02/17", name: "Cellin Louise Cheng" } });
@@ -238,21 +280,21 @@ export default function Dashboard() {
   };
 
   // ----------------------------------------------------------------
-  // UI Simulator — targets selectedLockerId
+  // UI Simulator
   // ----------------------------------------------------------------
   const pushHardwareEvent = (locker_id: string, action: string, newState: Partial<LockerSimState>, logDetails: string) => {
-  setSimStates(prev => ({
-    ...prev,
-    [locker_id]: { ...(prev[locker_id] ?? {}), ...newState } as LockerSimState
-  }));
-  const newLog: LogEntry = {
-    id: Math.random().toString(36).substring(2, 9),
-    timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
-    action,
-    details: logDetails,
+    setSimStates(prev => ({
+      ...prev,
+      [locker_id]: { ...(prev[locker_id] ?? {}), ...newState } as LockerSimState
+    }));
+    const newLog: LogEntry = {
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      action,
+      details: logDetails,
+    };
+    setLogs(prevLogs => [newLog, ...prevLogs]);
   };
-  setLogs(prevLogs => [newLog, ...prevLogs]);
-};
 
   const generateRandomUIN = () => `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
   const generateRandomWeight = () => +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
@@ -358,14 +400,24 @@ export default function Dashboard() {
 
       {/* Locker grid */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-slate-900">Lockers</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-lg font-bold text-slate-900">Lockers</h2>
+          {lockersRefreshing && (
+            <span className="text-xs text-slate-400 animate-pulse">Refreshing...</span>
+          )}
+        </div>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => session && fetchLockers(session.uin)}
-          disabled={lockersLoading}
+          onClick={() => {
+            if (sessionUinRef.current) {
+              fetchLockers(sessionUinRef.current, true);
+              startPolling(); // reset the countdown
+            }
+          }}
+          disabled={lockersRefreshing || lockersLoading}
         >
-          {lockersLoading ? "Refreshing..." : "Refresh"}
+          {lockersRefreshing ? "Refreshing..." : "Refresh"}
         </Button>
       </div>
 
@@ -376,7 +428,7 @@ export default function Dashboard() {
           <p className="text-slate-500 text-sm">No lockers assigned.</p>
         ) : (
           lockers.map((locker) => {
-            const sim = simStates[locker.locker_id];
+            const sim = simStates[String(locker.locker_id)];
             const displayState = (session.role === 'Admin' && sim) ? sim.state : locker.status;
             const displayWeight = (session.role === 'Admin' && sim) ? sim.currentWeight : locker.weight;
             const displayOwners = (session.role === 'Admin' && sim) ? sim.ownerUINs : [];
@@ -386,7 +438,8 @@ export default function Dashboard() {
               <Card
                 key={locker.locker_id}
                 className={`shadow-sm border-2 cursor-pointer transition-all ${isSelected && session.role === 'Admin' ? 'border-indigo-500' : 'border-slate-200'}`}
-                onClick={() => session.role === 'Admin' && setSelectedLockerId(String(locker.locker_id))}              >
+                onClick={() => session.role === 'Admin' && setSelectedLockerId(String(locker.locker_id))}
+              >
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="text-lg font-semibold">Locker {locker.locker_id}</CardTitle>
                   <Badge className={getStateColor(displayState)}>{displayState}</Badge>
@@ -401,7 +454,7 @@ export default function Dashboard() {
                     </div>
                     {displayState === 'TAMPERED' && session.role === 'Admin' && (
                       <Button
-                        onClick={(e) => { e.stopPropagation(); simulateAdminOverride(locker.locker_id); }}
+                        onClick={(e) => { e.stopPropagation(); simulateAdminOverride(String(locker.locker_id)); }}
                         variant="destructive"
                         size="sm"
                         className="font-bold shadow-sm"
