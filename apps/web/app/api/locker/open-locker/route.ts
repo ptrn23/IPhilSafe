@@ -33,7 +33,7 @@ export async function POST(
       where: { lockerId: l_id }
     });
     if (!user) {
-      return NextResponse.json({ error: `User ${name} with uin ${uin} is already a user for locker ${l_id}` }, { status: 404 });
+      return NextResponse.json({ error: `User not found` }, { status: 404 });
     }
     if (!locker){
       return NextResponse.json({ error: `Locker ${l_id} not found` }, { status: 404 });
