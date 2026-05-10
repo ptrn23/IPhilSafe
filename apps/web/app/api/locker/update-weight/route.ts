@@ -1,6 +1,6 @@
 import { NextResponse,NextRequest } from 'next/server';
 import { prisma } from '@repo/db';
-import { get_locker_state, create_audit_log } from '@/app/api/utils';
+import { get_locker_state, create_audit_log, isLockerClosed } from '@/app/api/utils';
 
 const tamper_threshold = 50
 
@@ -34,6 +34,11 @@ export async function POST(
     const cur_l_state = await get_locker_state(locker)
     if (cur_l_state != "OCCUPIED"){
       return NextResponse.json({ error: `Locker not OCCUPIED. In state ${cur_l_state}` }, { status: 409 });
+    }
+
+    // update weight only when locker is closed
+    if(await isLockerClosed(locker) == false){
+      return NextResponse.json({ error: `Locker ${l_id} is open` }, { status: 409 });
     }
 
     // tamper logic
