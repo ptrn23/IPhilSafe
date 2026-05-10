@@ -8,7 +8,10 @@ export async function POST(
     const {user_id}  = await req.json()
     // 2. Strict check for the ID
     if (!user_id) {
-      return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Route parameters not found"}, 
+        { status: 400 }
+      );
     }
 
     console.log("Audit logs accessed by user:", user_id);
@@ -19,12 +22,18 @@ export async function POST(
 
     // check if user exists
     if (!user){
-      return NextResponse.json({ error: `user  ${user_id} not found` }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" }, 
+        { status: 404 }
+        );
     }
 
     // 2. Strict check for the ID
     if (user.userRole != 'Admin') {
-      return NextResponse.json({ error: "User role is not admin" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Only for admin access"}, 
+        { status: 401 }
+      );
     }
                       
     const res = await prisma.auditLog.findMany();

@@ -9,7 +9,10 @@ export async function POST(
     const {user_id}  = await req.json()
     // 2. Strict check for the ID
     if (!user_id) {
-      return NextResponse.json({ error: "Route parameter id not found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Route parameters not found"}, 
+        { status: 400 }
+      );
     }
 
     console.log("Locker data accessed by user:", user_id);
@@ -20,7 +23,10 @@ export async function POST(
     });
 
     if (user === undefined || user === null) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" }, 
+        { status: 404 }
+      );
     }
 
     // get lockers
