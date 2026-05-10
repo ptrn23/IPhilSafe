@@ -4,11 +4,14 @@ import { create_audit_log, get_locker_state, isLockerClosed } from '../../utils'
 export async function POST(
     req: NextRequest) {
   try {
-    const { locker_id, weight } = await req.json()
+    const { locker_id, weight, qr_data } = await req.json()
     
-    if (locker_id == undefined || locker_id == null || weight == null || weight == undefined  ) {
+    if (!qr_data || locker_id == undefined || locker_id == null || weight == null || weight == undefined  ) {
       return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
     }
+    const user_data = JSON.parse(qr_data);
+    const uin = user_data.uin;
+    const name = user_data.name;
     const l_id = parseInt(locker_id, 10)
     const w_new = parseInt(weight, 10)
     // Check if locker id is a number (Note: 0 is a valid number!)
@@ -19,12 +22,36 @@ export async function POST(
       return NextResponse.json({ error: `Value ${w_new} is not a valid number` }, { status: 400 });
     }
 
-    // Check if locker exists
+    // // MOSIP verification
+    // const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data.subject));
+    // if (mosipResult.status !== "verified"~) {
+    //   return NextResponse.json({ error: `MOSIP verification failed: ${mosipResult.message || "Unknown error"}` }, { status: 401 });
+    // }
+
+
+    // Check if user and locker exists
+    const user = await prisma.user.findUnique({
+      where: { uinPhilsys: uin }
+    });
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
     });
     if (!locker){
       return NextResponse.json({ error: `Locker ${l_id} not found` }, { status: 404 });
+    }
+    if (!user) {
+      return NextResponse.json({ error: `User not found` }, { status: 404 });
+    }
+
+    // check if existing relationship between locker and user
+    const isUserVerified = await prisma.userLocker.findFirst({
+      where:{
+        userId: uin, 
+        lockerId: l_id
+      }
+    });
+    if (!isUserVerified){
+      return NextResponse.json({ error:  `User ${name} with uin ${uin} is not an owner for locker ${l_id}` }, { status: 401 });
     }
     
     // check if locker is closed

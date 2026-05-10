@@ -272,11 +272,15 @@ export default function Dashboard() {
     console.log(`🗄️| start registration for locker 2:`, data);
   };
 
-  const unregisterLocker = async (locker_id:any = 2) => {
+  const unregisterLocker = async (locker_id:any = 2, qr_data:any = JSON.stringify({ uin: "4104961936", dob: "2004/02/17", name: "Cellin Louise Cheng" } )) => {
     const res = await fetch(`/api/locker/unreg`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ locker_id: locker_id, weight: 0 }),
+      body: JSON.stringify({ 
+        locker_id: locker_id, 
+        weight: 0, 
+        qr_data: qr_data 
+      }),
     });
     const data = await res.json();
     console.log(`🗄️| unregister locker 2:`, data);
@@ -635,7 +639,13 @@ export default function Dashboard() {
               }} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Close Locker for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
               <Button onClick={() => startRegistration(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Start Reg Period for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
               <Button onClick={() => finishReg(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Finish Reg Period for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
-              <Button onClick={() => unregisterLocker(selectedLockerId)} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Unregister Locker for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
+              <Button onClick={() => {
+                const qr_data = prompt("Enter qr data in string form:"); 
+                
+                if (qr_data != null){
+                  unregisterLocker(selectedLockerId, qr_data)
+                }
+              }} variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Unregister Locker for {selectedLockerId ? `Locker ${selectedLockerId}` : 'None — Locker 2 default'}</Button>
               <Button onClick={() => {
                 const newWeight = prompt("Enter new weight:");
                 if (newWeight != null){
