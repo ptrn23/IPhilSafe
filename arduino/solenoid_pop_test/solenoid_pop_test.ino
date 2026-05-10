@@ -1,21 +1,23 @@
 // --- PIN DEFINITIONS ---
-#define DOOR_SENSOR_PIN   D7
-#define BUTTON_PIN        D9
-#define LOCK_PIN          D1
-#define DEBUG_LED_PIN     D2  // Added for visual debugging without the monitor
+// Swapped to pins with internal pull-up resistors!
+#define DOOR_SENSOR_PIN   4  
+#define BUTTON_PIN        5  
+#define LOCK_PIN          14 
+#define DEBUG_LED_PIN     13  // Added for visual debugging without the monitor
 
 // Variable to remember the last state of the door to prevent Serial Monitor spam
 int lastDoorState = -1; 
+unsigned long lastDoorChange = 0;
+
 
 void setup() {
   Serial.begin(115200);
   delay(1000); // Give the Serial Monitor a second to wake up
   
-  digitalWrite(LOCK_PIN, HIGH); // HIGH = Relay OFF = Spring pushed out (LOCKED)
   // 1. Setup the Lock (Must start HIGH to turn an Active-Low relay OFF)
   pinMode(LOCK_PIN, OUTPUT);
+  digitalWrite(LOCK_PIN, HIGH); // HIGH = Relay OFF = Spring pushed out (LOCKED)
 
-  
   // 2. Setup the Sensors (Using internal pull-up resistors)
   pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -57,7 +59,7 @@ void loop() {
   }
   
   // --- SERIAL DEBUG (Update on Change Only) ---
-  if (currentDoorState != lastDoorState) {
+  if (currentDoorState != lastDoorState && millis() - lastDoorChange > 300) {
     if (currentDoorState == LOW) {
       Serial.println("Status: Locker Door is SECURELY CLOSED.");
     } else { 
@@ -66,8 +68,9 @@ void loop() {
     
     // Update the memory variable
     lastDoorState = currentDoorState;
+    lastDoorChange = millis();
   }
   
-  // Keep background Wi-Fi processes happy so the ESP8266 doesn't crash
+  // Keep background FreeRTOS processes happy so the ESP32 doesn't crash
   yield(); 
 }

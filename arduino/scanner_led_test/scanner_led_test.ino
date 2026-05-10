@@ -1,52 +1,64 @@
-#include <SoftwareSerial.h>
+// No SoftwareSerial include needed!
 
-#define RED_PIN     D1
-#define GREEN_PIN   D2
-#define BLUE_PIN   D3
+#define RED_PIN     25
+#define GREEN_PIN   26
+#define BLUE_PIN    27
 
-#define SCANNER_RX D5
-#define SCANNER_TX D6
+// Using ESP32's dedicated Hardware Serial 2 pins
+#define SCANNER_RX 16
+#define SCANNER_TX 17
 
-SoftwareSerial scanner(SCANNER_RX, SCANNER_TX);
+// Create a HardwareSerial object using UART Channel 2
+HardwareSerial scanner(2); 
 
-void setColor(int r, int g, int b) {
+void writeRGB(int r, int g, int b) {
   analogWrite(RED_PIN, r);
   analogWrite(GREEN_PIN, g);
   analogWrite(BLUE_PIN, b);
 }
 
-void colorMap(String color) {
+void setColor(String color) {
   if (color == "Red") {
-    setColor(1023, 0, 0);
+    writeRGB(255, 0, 0);
   } else if (color == "Orange") {
-    setColor(1023, 50, 0);
+    writeRGB(255, 40, 0);
   } else if (color == "Yellow") {
-    setColor(512, 1023, 0);
+    writeRGB(200, 200, 0);
   } else if (color == "Green") {
-    setColor(0, 1023, 0);
+    writeRGB(0, 255, 0);
   } else if (color == "Blue") {
-    setColor(0, 0, 100);
+    writeRGB(0, 0, 255);
+  } else if (color == "Pink") {
+    writeRGB(255, 50, 100);
+  } else if (color == "Cyan") {
+    writeRGB(0, 17, 150);
   } else if (color == "White") {
-    setColor(100, 200, 100);
+    writeRGB(175, 175, 175);
   } else if (color == "Off") {
-    setColor(0, 0, 0);
+    writeRGB(0, 0, 0);
+  } else {
+    writeRGB(255, 50, 100); // default to pink for unknown colors
   }
 }
 
 void setup() {
-  Serial.begin(115200);
-  scanner.begin(9600);
+  // Serial Monitor Baud Rate
+  Serial.begin(115200); 
+  
+  // ESP32 HardwareSerial Initialization: (Baud, Protocol, RX Pin, TX Pin)
+  scanner.begin(9600, SERIAL_8N1, SCANNER_RX, SCANNER_TX);
+  
   delay(1000);
   Serial.println("\n--- GM861S QR Scanner Ready ---");
-  colorMap("Green");
-
+  setColor("Green");
 }
 
 void loop() {
   if (scanner.available()) {
-    colorMap("Yellow");
+    setColor("Pink");
     String data = "";
     unsigned long lastByte = millis();
+    
     while (millis() - lastByte < 150) {
       if (scanner.available()) {
         char c = scanner.read();
@@ -56,10 +68,12 @@ void loop() {
         lastByte = millis();
       }
     }
+    
     if (data.length() > 0) {
       Serial.println(data);
+      setColor("Blue");
       delay(1000);
-      colorMap("Green");
+      setColor("Green");
     }
   }
 }
