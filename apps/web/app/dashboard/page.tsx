@@ -478,7 +478,13 @@ export default function Dashboard() {
                 <CardContent>
                   <div className="flex items-end justify-between mt-2">
                     <div className="text-sm text-slate-500">
-                      <p>Current Load: <span className="font-mono text-slate-900 font-medium">{displayWeight.toFixed(2)} g</span></p>
+                      <p>Current Load: <span className="font-mono text-slate-900 font-medium">
+                        {displayState === 'OCCUPIED'
+                          ? `${displayWeight.toFixed(2)} g`
+                          : displayState === 'TAMPERED'
+                          ? `${displayWeight.toFixed(2)} g (last recorded)`
+                          : '--'}
+                        </span></p>
                       {session.role === 'Admin' && (
                         <p>
                           Owners: <span className="font-mono text-slate-900">
