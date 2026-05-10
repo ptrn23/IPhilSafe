@@ -2,7 +2,7 @@ import { NextResponse,NextRequest } from 'next/server';
 import { prisma } from '@repo/db';
 import { get_locker_state, create_audit_log, isLockerClosed } from '@/app/api/utils';
 
-const tamper_threshold = 50
+const tamper_threshold = 10
 
 export async function POST(
     req: NextRequest
