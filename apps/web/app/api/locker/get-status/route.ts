@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from "@repo/db";
-import { get_locker_state } from '@/app/api/utils';
+import { get_locker_state, isLockerClosed } from '@/app/api/utils';
 export async function POST(
     req: NextRequest,
 ) {
@@ -31,9 +31,12 @@ export async function POST(
 
     // 4. Logic State
     const state = await get_locker_state(locker);
+    const isClosed = await isLockerClosed(locker);
     return NextResponse.json({ 
       status: state,
-      lockerId: l_id 
+      lockerId: l_id ,
+      weight: locker.weight,
+      isClosed: isClosed
     });   
 
   } catch (err) {
