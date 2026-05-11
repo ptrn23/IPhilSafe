@@ -65,8 +65,9 @@ export async function POST(
       return NextResponse.json({ error: `Locker not OCCUPIED. In state ${cur_l_state}` }, { status: 409 });
     }
 
-    // check if weight is within empty weight assumption
-    const w_empty = 10
+    const settings = await prisma.systemSettings.findUnique({ where: { id: 1 } });
+    const w_empty = settings?.emptyWeightThreshold ?? 10;
+
     if (w_new > w_empty){
       // udaptes current weight to not flag tamper detection
       await prisma.locker.update({
