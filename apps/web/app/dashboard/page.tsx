@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -42,6 +43,12 @@ interface UserSession {
   role: 'Admin' | 'User';
 }
 
+interface SettingsState {
+  weightTolerance: number;
+  emptyWeightThreshold: number;
+  registrationTimer: number;
+}
+
 const getStateColor = (state: LockerState | string) => {
   switch (state) {
     case 'IDLE': return "bg-green-600 hover:bg-green-700";
@@ -68,6 +75,14 @@ export default function Dashboard() {
   const [selectedLockerId, setSelectedLockerId] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [settings, setSettings] = useState<SettingsState>({
+    weightTolerance: 5,
+    emptyWeightThreshold: 20,
+    registrationTimer: 300,
+  });
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
 
   // Single source of truth for polling
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -142,6 +157,57 @@ export default function Dashboard() {
   };
 
   // ----------------------------------------------------------------
+  // Fetch System Settings (Singleton)
+  // ----------------------------------------------------------------
+  const fetchSystemSettings = async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await fetch("/api/settings");
+      if (res.ok) {
+        const data = await res.json();
+        setSettings({
+          weightTolerance: data.weightTolerance,
+          emptyWeightThreshold: data.emptyWeightThreshold,
+          registrationTimer: data.registrationTimer,
+        });
+      }
+    } catch (err) {
+      console.error("Error loading hardware calibration parameters:", err);
+    } finally {
+      setSettingsLoading(false);
+    }
+  };
+
+  const handleSettingChange = (field: keyof SettingsState, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      [field]: parseInt(value, 10) || 0,
+    }));
+  };
+  
+  const saveSystemSettings = async () => {
+    setSettingsSaving(true);
+    setSettingsMessage(null);
+
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+
+      if (!res.ok) throw new Error("Failed to update database calibration");
+      
+      setSettingsMessage("✓ Settings updated successfully");
+      setTimeout(() => setSettingsMessage(null), 3500);
+    } catch (err) {
+      setSettingsMessage("✕ Error: Failed to update settings");
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
+  // ----------------------------------------------------------------
   // Session check — runs once, starts polling after first fetch
   // ----------------------------------------------------------------
   useEffect(() => {
@@ -155,7 +221,12 @@ export default function Dashboard() {
         const data = await res.json();
         sessionUinRef.current = data.user_id;
         setSession({ uin: data.user_id, role: data.role });
+        
         await fetchLockers(data.user_id);
+        if (data.role === 'Admin') {
+          await fetchSystemSettings();
+        }
+        
         startPolling(); // starts exactly once, after initial fetch
       } catch {
         router.push('/');
@@ -320,12 +391,12 @@ export default function Dashboard() {
   // UI Simulator
   // ----------------------------------------------------------------
   const pushHardwareEvent = (locker_id: string, action: string, newState: Partial<LockerSimState>, logDetails: string) => {
-  setSimStates(prev => ({
-    ...prev,
-    [locker_id]: { ...(prev[locker_id] ?? {}), ...newState } as LockerSimState
-  }));
-  setLogs(prevLogs => [...prevLogs]);
-};
+    setSimStates(prev => ({
+      ...prev,
+      [locker_id]: { ...(prev[locker_id] ?? {}), ...newState } as LockerSimState
+    }));
+    setLogs(prevLogs => [...prevLogs]);
+  };
 
   const generateRandomUIN = () => `${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`;
   const generateRandomWeight = () => +(Math.random() * (5.00 - 0.50) + 0.50).toFixed(2);
@@ -584,6 +655,104 @@ export default function Dashboard() {
           </ScrollArea>
         </Card>
       </div>
+
+      {/* --- Locker settings --- */}
+      {session.role === 'Admin' && (
+        <Card className="shadow-sm border-slate-200 max-w-xl mt-8">
+          <CardHeader>
+            <CardTitle className="text-lg font-bold text-slate-900">
+              Global Settings
+            </CardTitle>
+          </CardHeader>
+          
+          <CardContent className="space-y-4">
+            {settingsLoading ? (
+              <div className="text-xs text-slate-500 animate-pulse">Querying database...</div>
+            ) : (
+              <>
+                {/* Weight Tolerance */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block">
+                      Weight Tolerance
+                    </label>
+                    <span className="text-xs text-slate-500 block">
+                      Tolerated change in mass before tamper state is triggered
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      step="1"
+                      value={settings.weightTolerance}
+                      onChange={(e) => handleSettingChange("weightTolerance", e.target.value)}
+                      className="font-mono text-right"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">g</span>
+                  </div>
+                </div>
+
+                {/* Empty Locker Threshold */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block">
+                      Empty Weight Threshold
+                    </label>
+                    <span className="text-xs text-slate-500 block">
+                      Threshold for recognizing an empty locker during checkout
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      step="1"
+                      value={settings.emptyWeightThreshold}
+                      onChange={(e) => handleSettingChange("emptyWeightThreshold", e.target.value)}
+                      className="font-mono text-right"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">g</span>
+                  </div>
+                </div>
+
+                {/* Registration Timer */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block">
+                      Registration Timer
+                    </label>
+                    <span className="text-xs text-slate-500 block">
+                      Duration to scan co-user credentials
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      step="5"
+                      value={settings.registrationTimer}
+                      onChange={(e) => handleSettingChange("registrationTimer", e.target.value)}
+                      className="font-mono text-right"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">sec</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+
+          <CardFooter className="flex justify-between items-center bg-slate-50 rounded-b-lg pt-4">
+            <span className={`text-xs font-medium ${settingsMessage?.includes("✓") ? "text-green-600" : "text-red-600"}`}>
+              {settingsMessage || ""}
+            </span>
+            <Button 
+              onClick={saveSystemSettings} 
+              disabled={settingsSaving || settingsLoading}
+              className="bg-slate-900 hover:bg-slate-800 text-white"
+            >
+              {settingsSaving ? "Saving..." : "Save Settings"}
+            </Button>
+          </CardFooter>
+        </Card>
+      )}
 
       {/* Admin panel */}
       {session.role === 'Admin' && (
