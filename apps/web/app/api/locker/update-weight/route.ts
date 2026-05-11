@@ -42,6 +42,9 @@ export async function POST(
     }
 
     const settings = await prisma.systemSettings.findUnique({ where: { id: 1 } });
+    if (!settings){
+      return NextResponse.json({ error: `Setting not found` }, { status: 404 });
+    }
     const tamper_threshold = settings?.weightTolerance ?? 10;
 
     // tamper logic
