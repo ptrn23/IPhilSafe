@@ -41,6 +41,9 @@ export async function POST(
       return NextResponse.json({ error: `Locker ${l_id} is open` }, { status: 409 });
     }
 
+    const settings = await prisma.systemSettings.findUnique({ where: { id: 1 } });
+    const tamper_threshold = settings?.weightTolerance ?? 10;
+
     // tamper logic
     w_new= w_new < 0 ? 0:  w_new
     const oldWeight = locker.weight ?? 0;
