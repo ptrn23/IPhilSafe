@@ -66,3 +66,11 @@ enum sys_log_type {
   Denied_Access
   Registration_Finished
 }
+
+model SystemSettings {
+  id                   Int      @id @default(1)
+  weightTolerance      Int      @default(20)  
+  emptyWeightThreshold Int      @default(20) 
+  registrationTimer    Int      @default(300)
+  updatedAt            DateTime @updatedAt
+}
