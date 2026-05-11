@@ -26,8 +26,11 @@ export async function POST(
 ) {
   try {
     const body = await req.json();
-    const { weightTolerance, emptyWeightThreshold, registrationTimer } = body;
-
+    const {weightTolerance , emptyWeightThreshold, registrationTimer } = body;
+    // Strict check for the params
+    if (!weightTolerance || !emptyWeightThreshold || !registrationTimer   ) {
+      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+    }
     const parsedTolerance = parseInt(weightTolerance, 10);
     const parsedEmpty = parseInt(emptyWeightThreshold, 10);
     const parsedTimer = parseInt(registrationTimer, 10);
