@@ -50,6 +50,18 @@ model AuditLog {
   @@map("audit_log")
 }
 
+model SystemSettings {
+  id                       Int      @id @default(1)
+  weightTolerance          Int      @default(20)
+  emptyWeightThreshold     Int      @default(20)
+  registrationTimer        Int      @default(300)
+  updatedAt                DateTime @updatedAt
+  unregistrationTimer      Int?
+  ignoreDuplicateScanTimer Int?
+  getStatusTimer           Int?
+  weightUpdateTimer        Int?
+}
+
 enum role {
   Admin
   User
@@ -65,12 +77,4 @@ enum sys_log_type {
   Locker_Closed
   Denied_Access
   Registration_Finished
-}
-
-model SystemSettings {
-  id                   Int      @id @default(1)
-  weightTolerance      Int      @default(20)  
-  emptyWeightThreshold Int      @default(20) 
-  registrationTimer    Int      @default(300)
-  updatedAt            DateTime @updatedAt
 }

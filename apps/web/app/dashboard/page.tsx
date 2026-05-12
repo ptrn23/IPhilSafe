@@ -47,6 +47,10 @@ interface SettingsState {
   weightTolerance: number;
   emptyWeightThreshold: number;
   registrationTimer: number;
+  unregistrationTimer: number;
+  ignoreDuplicateScanTimer: number;
+  getStatusTimer: number;
+  weightUpdateTimer:number;
 }
 
 const getStateColor = (state: LockerState | string) => {
@@ -78,7 +82,11 @@ export default function Dashboard() {
   const [settings, setSettings] = useState<SettingsState>({
     weightTolerance: 5,
     emptyWeightThreshold: 20,
-    registrationTimer: 300,
+    registrationTimer: 60,
+    unregistrationTimer: 60,
+    ignoreDuplicateScanTimer: 3, 
+    getStatusTimer: 10,
+    weightUpdateTimer: 30
   });
   const [settingsLoading, setSettingsLoading] = useState(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
@@ -169,6 +177,11 @@ export default function Dashboard() {
           weightTolerance: data.weightTolerance,
           emptyWeightThreshold: data.emptyWeightThreshold,
           registrationTimer: data.registrationTimer,
+          unregistrationTimer: data.unregistrationTimer,
+          ignoreDuplicateScanTimer: data.ignoreDuplicateScanTimer,
+          getStatusTimer: data.getStatusTimer,
+          weightUpdateTimer: data.weightUpdateTimer
+          
         });
       }
     } catch (err) {
@@ -730,6 +743,93 @@ export default function Dashboard() {
                       step="5"
                       value={settings.registrationTimer}
                       onChange={(e) => handleSettingChange("registrationTimer", e.target.value)}
+                      className="font-mono text-right"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">sec</span>
+                  </div>
+                </div>
+
+                {/* Session termination timeout Timer */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block">
+                      Unregistration Timer
+                    </label>
+                    <span className="text-xs text-slate-500 block">
+                      Duration for verication during session termination
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      step="1"
+                      value={settings.unregistrationTimer}
+                      onChange={(e) => handleSettingChange("unregistrationTimer", e.target.value)}
+                      className="font-mono text-right"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">sec</span>
+                  </div>
+                </div>
+
+                {/* ignore duplication qr scan timer */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block">
+                      Duplicate Scan Timer
+                    </label>
+                    <span className="text-xs text-slate-500 block">
+                      Duration to ignore duplication qr scan timer
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      step="1"
+                      value={settings.ignoreDuplicateScanTimer}
+                      onChange={(e) => handleSettingChange("ignoreDuplicateScanTimer", e.target.value)}
+                      className="font-mono text-right"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">sec</span>
+                  </div>
+                </div>
+
+                {/* weight update interval */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block">
+                      Weight update interval
+                    </label>
+                    <span className="text-xs text-slate-500 block">
+                      Time interval for weight updates to be sent for tamper detection 
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      step="1"
+                      value={settings.weightUpdateTimer}
+                      onChange={(e) => handleSettingChange("weightUpdateTimer", e.target.value)}
+                      className="font-mono text-right"
+                    />
+                    <span className="text-sm text-slate-500 font-mono">sec</span>
+                  </div>
+                </div>
+                {/* locker status update */}
+                <div className="grid grid-cols-2 gap-4 items-center">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 block">
+                      Locker status update interval
+                    </label>
+                    <span className="text-xs text-slate-500 block">
+                      Time interval for locker status updates
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      type="number"
+                      step="1"
+                      value={settings.getStatusTimer}
+                      onChange={(e) => handleSettingChange("getStatusTimer", e.target.value)}
                       className="font-mono text-right"
                     />
                     <span className="text-sm text-slate-500 font-mono">sec</span>
