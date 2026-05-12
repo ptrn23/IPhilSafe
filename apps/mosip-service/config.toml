@@ -6,7 +6,7 @@ ida_auth_request_kyc_id = "mosip.identity.kyc"
 ida_auth_request_otp_id = "mosip.identity.otp"
 ida_auth_env = "Staging"
 authorization_header_constant = "Authorization"
-partner_misp_lk = "8M9eODeLeEJKcY4EP5JkQSTIDS9xOqdXCQFnLa2AVuMjY1W6t5"
+partner_misp_lk = "ulFV6JECDlCKf9l3bKRXyZElq5P3G0fKC3tePHYjWOHHmMeGWL"
 partner_id = "cs145-252-10"
 partner_apikey = "332120"
 

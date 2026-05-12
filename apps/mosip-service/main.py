@@ -77,9 +77,7 @@ def parse_qr(raw: str) -> dict:
 
     uin = subject.get("UIN") or subject.get("uin")
     raw_dob = subject.get("DOB") or subject.get("dob")
-    fname = subject.get("fName") or subject.get("firstName") or ""
-    lname = subject.get("lName") or subject.get("lastName") or ""
-    name = f"{fname} {lname}".strip() or None
+    name = subject.get("name") or subject.get("Name")  
 
     if not uin:
         raise ValueError(f"QR data missing UIN. subject keys: {list(subject.keys())}")
