@@ -26,26 +26,28 @@
 
 String currentState = "";
 String currentColor = "White";
+int currentWeight = 0;
 
 const int locker_id = 2;
 
-int lastDoorState = HIGH;
+int lastDoorState = -1;
 unsigned long lastDoorClosed = 0;
 
-int currentWeight = 0;
 unsigned long lastWeightCheck = 0;
 const unsigned long weightCheckInterval = 60000; // check weight every 60 seconds
 
 String lastScannedCode = "";
 unsigned long lastScanTime = 0;
-const unsigned long duplicateTimeout = 5000;
+const unsigned long duplicateTimeout = 3000;  // 3 seconds to ignore duplicate scans
 
 unsigned long lastStartRegisterTime = 0;
-const unsigned long registerModeTimeout = 30000; // 30 secons to complete registration
+const unsigned long registerModeTimeout = 30000; // 30 seconds to complete registration
 
-const unsigned long unregisterModeTimeout = 30000; // 30 seconds to complete unregistration
 unsigned long lastUnregisterTime = 0;
+const unsigned long unregisterModeTimeout = 30000; // 30 seconds to complete unregistration
 
+unsigned long lastGetStatusTime = 0;
+const unsigned long getstatusInterval = 10000; // check status every 10 seconds
 
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
@@ -84,7 +86,11 @@ void setup() {
 void updateCurrentState() {
   currentState = sendGetStatus();
   currentColor = statusToLED(currentState);
-  setColor(currentColor);
+  if (currentState != "UNREGISTER"){ // do not override color if in unregister mode since it's a temporary state
+    setColor(currentColor);
+  }
+  lastGetStatusTime = millis();
+  Serial.println("[Locker] Current locker state: " + currentState);
 }
 
 void openLocker() {
@@ -92,26 +98,31 @@ void openLocker() {
     Serial.println("[Locker] Locker is already open.");
     return;
   }
-  
-  while (!isDoorOpen()) {
-    digitalWrite(LOCK_PIN, LOW); // Unlock
-    delay(500); // Keep unlocked for 0.5 seconds
-    digitalWrite(LOCK_PIN, HIGH); // Lock back
+  while (!isDoorOpen()) { // try to open locker until door sensor detects it's open
+    digitalWrite(LOCK_PIN, LOW);
+    delay(500);
+    digitalWrite(LOCK_PIN, HIGH);
     delay(500);
   }
   Serial.println("[Locker] Locker opened successfully.");
 }
 
 bool isDoorOpen() {
-  int doorState = digitalRead(DOOR_SENSOR_PIN);
-  if (doorState == HIGH) { // door opened
-    return true;
-  }
-  return false;
+  return digitalRead(DOOR_SENSOR_PIN) == HIGH;
 }
 
 void loop() {
   LoadCell.update();
+  if (millis() - lastGetStatusTime >= getstatusInterval) {
+    updateCurrentState();
+  }
+
+  if (lastDoorState == HIGH && !isDoorOpen() && millis() - lastDoorClosed > 300) { // door just closed
+      Serial.println("[Locker] Door closed. Updating weight and locker status.");
+      updateWeight();
+      sendClosedLocker();
+      updateCurrentState();
+  }
 
   if (currentState == "IDLE") {
     String qr_scanned = checkScanner();
@@ -159,14 +170,7 @@ void loop() {
       sendOpenLocker(qr_scanned);
       updateCurrentState();
     }
-
-    if (lastDoorState == HIGH && !isDoorOpen() && millis() - lastDoorClosed > 300) { // door just closed
-      Serial.println("[Locker] Door closed. Updating weight and locker status.");
-      updateWeight();
-      sendClosedLocker();
-      updateCurrentState();
-    }
-
+    
     if (!isDoorOpen()) { // door is closed
       if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, verify weight, unregister
         Serial.println("[Locker] Unregister button pressed. Switching to UNREGISTER mode.");
@@ -178,6 +182,7 @@ void loop() {
 
       if (millis() - lastWeightCheck >= weightCheckInterval) {
         sendUpdateWeight();
+        updateCurrentState();
       }
     }
   } 

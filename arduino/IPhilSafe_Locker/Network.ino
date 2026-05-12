@@ -19,7 +19,7 @@ void connectToWiFi() {
   setColor(currentColor);
 }
 
-String sendApiRequest(String endpoint, String payload) {
+String sendApiRequest(String endpoint, String payload, bool silent = false) {
   if (WiFi.status() != WL_CONNECTED) {
     connectToWiFi();
   }
@@ -57,19 +57,25 @@ String sendApiRequest(String endpoint, String payload) {
     if (!error) {
       String errorMessage = error ? "Unknown error" : doc["error"].as<String>();
       Serial.println("[Network] ERROR: " + errorMessage);
-      flashColor("Red", 2, 300);
-      setColor(currentColor);
+      if (!silent) {
+        flashColor("Red", 2, 300); // API error color
+        setColor(currentColor);
+      }
     }
     else{
       Serial.println("[Network] ERROR: Failed to parse error response JSON");
-      flashColor("Pink", 2, 300); // JSON response error color
-      setColor(currentColor);
+      if (!silent) {
+        flashColor("Pink", 2, 300); // JSON response error color
+        setColor(currentColor);
+      }
     }
   } 
   else {
     Serial.println("[Network] ERROR: Connection Refused or Failed to reach server");
-    flashColor("White", 2, 300); // network error
-    setColor(currentColor);
+    if (!silent) {
+      flashColor("White", 2, 300); // network error color
+      setColor(currentColor);
+    }
   }
 
   http.end();
@@ -89,7 +95,7 @@ String createJSONPayload(String qr_data = "") {
 String sendGetStatus() {
   Serial.println("\n----------------------- GET STATUS HTTP REQUEST -----------------------");
   String payload = createJSONPayload();
-  String response = sendApiRequest("/api/locker/get-status", payload);
+  String response = sendApiRequest("/api/locker/get-status", payload, true);
   Serial.println("-----------------------------------------------------------------------\n");
 
   if (response != "") {
@@ -101,8 +107,8 @@ String sendGetStatus() {
       return lockerStatus;
     } else {
       Serial.println("[Network] ERROR: Failed to parse error response JSON");
-      flashColor("Pink", 2, 300); 
-      setColor(currentColor);
+      // flashColor("Pink", 2, 300); 
+      // setColor(currentColor);
     }
   }
   return currentState; // return current state if failed to get status from server
@@ -117,7 +123,7 @@ void sendStartRegister() {
   if (response != "") {
     Serial.println("[Locker] Switched to REGISTER mode");
     lastStartRegisterTime = millis();
-    setColor("Yellow"); // register color
+    // setColor("Yellow"); // register color
   }
 }
 
@@ -129,7 +135,7 @@ void sendFinishRegister() {
   
   if (response != "") {
     Serial.println("[Locker] Registration successful. Switching to OCCUPIED mode.");
-    flashColor("Yellow", 2, 300); // register finish success
+    flashColor("Blue", 2, 300); // register finish success
     setColor("Blue"); // switch to occupied
     openLocker();
   }
@@ -172,9 +178,10 @@ void sendOpenLocker(String qrPayload) {
 }
 
 void sendClosedLocker() {
+  lastDoorClosed = millis();
   Serial.println("\n---------------------- CLOSE LOCKER HTTP REQUEST -----------------------");
   String payload = createJSONPayload();
-  String response = sendApiRequest("/api/locker/close-locker", payload);
+  String response = sendApiRequest("/api/locker/close-locker", payload, true);
   Serial.println("------------------------------------------------------------------------\n");
 
   if (response != "") {
@@ -200,7 +207,7 @@ void sendUpdateWeight() {
   
   Serial.println("\n---------------------- UPDATE WEIGHT HTTP REQUEST -----------------------");
   String payload = createJSONPayload();
-  String response = sendApiRequest("/api/locker/update-weight", payload);
+  String response = sendApiRequest("/api/locker/update-weight", payload, true);
   Serial.println("-------------------------------------------------------------------------\n");
   
   if (response != "") {
