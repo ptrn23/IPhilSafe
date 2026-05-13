@@ -11,29 +11,44 @@ export async function POST(
     const { locker_id, weight } = await req.json()
     // Strict check for the params
     if (locker_id == undefined || locker_id == null || weight == null || weight == undefined  ) {
-      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Route parameters not found" }, 
+        { status: 400 }
+      );
     }
 
     const l_id = Number(locker_id);
     let w_new = Number(weight);
     // Check if weight and locker id is a number (Note: 0 is a valid number!)
     if (isNaN(w_new)) {
-      return NextResponse.json({ error: `Value ${w_new} is not a valid number` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Value ${w_new} is not a valid number` }, 
+        { status: 400 }
+      );
     }
     if (isNaN(l_id)) {
-      return NextResponse.json({ error: `Value ${l_id} is not a valid number` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Value ${l_id} is not a valid number` }, 
+        { status: 400 }
+      );
     }
 
     // check if locker is existing
     const locker = await prisma.locker.findUnique({ where: { lockerId: l_id } })
     if (!locker) {
-      return NextResponse.json({ error: `Locker ${l_id} not found` }, { status: 404 });
+      return NextResponse.json(
+        { error: `Locker ${l_id} not found` }, 
+        { status: 404 }
+      );
     }
 
     // check if locker is in occupied state
     const cur_l_state = await get_locker_state(locker)
     if (cur_l_state != "OCCUPIED"){
-      return NextResponse.json({ error: `Locker not OCCUPIED. In state ${cur_l_state}` }, { status: 409 });
+      return NextResponse.json(
+        { error: `Locker not OCCUPIED. In state ${cur_l_state}` }, 
+        { status: 409 }
+      );
     }
 
     // update weight only when locker is closed
@@ -71,6 +86,9 @@ export async function POST(
 
   } catch (e) {
     console.error("Weight Update Error:", e);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" }, 
+      { status: 500 }
+    );
   }
 }

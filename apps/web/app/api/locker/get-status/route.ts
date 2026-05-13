@@ -10,13 +10,19 @@ export async function POST(
     
     // Strict check for the ID
     if (locker_id == undefined || locker_id == null ) {
-      return NextResponse.json({ error: "Route parameter 'id' not found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Route parameters not found" }, 
+        { status: 400 }
+      );
     }
 
     const l_id = parseInt(locker_id, 10)
     // Check if it's actually a number (Note: 0 is a valid number!)
     if (isNaN(l_id)) {
-      return NextResponse.json({ error: `Value '${l_id}' is not a valid number` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Value '${l_id}' is not a valid number` }, 
+        { status: 400 }
+      );
     }   
 
     console.log("Status Request for ID:", l_id, locker_id);
@@ -26,7 +32,10 @@ export async function POST(
     });
     // check if locker in database
     if (!locker){
-      return NextResponse.json({ error: `Locker ${locker_id} not found` }, { status: 404 });
+      return NextResponse.json(
+        { error: `Locker ${locker_id} not found` }, 
+        { status: 404 }
+      );
     }
 
     // 4. Logic State

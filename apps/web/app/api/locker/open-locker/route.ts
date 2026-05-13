@@ -8,7 +8,10 @@ export async function POST(
     const { qr_data, locker_id } = await req.json();
     // Strict check for the params
     if (!qr_data || locker_id == undefined || locker_id == null) {
-      return NextResponse.json({ error: "Route parameters not found" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Route parameters not found" }, 
+        { status: 400 }
+      );
     }
     const user_data = JSON.parse(qr_data);
     const uin = user_data.uin;
@@ -16,7 +19,10 @@ export async function POST(
     const l_id = Number(locker_id);
     // Check if locker id is a number (Note: 0 is a valid number!)
     if (isNaN(l_id)) {
-      return NextResponse.json({ error: `Value ${l_id} is not a valid number` }, { status: 400 });
+      return NextResponse.json(
+        { error: `Value ${l_id} is not a valid number` }, 
+        { status: 400 }
+      );
     }
 
     // // MOSIP verification
@@ -33,10 +39,16 @@ export async function POST(
       where: { lockerId: l_id }
     });
     if (!user) {
-      return NextResponse.json({ error: `User not found` }, { status: 404 });
+      return NextResponse.json(
+        { error: "User not found" }, 
+        { status: 404 }
+      );
     }
     if (!locker){
-      return NextResponse.json({ error: `Locker ${l_id} not found` }, { status: 404 });
+      return NextResponse.json(
+        { error: `Locker ${l_id} not found` }, 
+        { status: 404 }
+      );
     }
 
     // check if existing relationship between locker and user
@@ -59,10 +71,16 @@ export async function POST(
       return NextResponse.json({ message: "Denied", name: user.name });
     }
     else{
-      return NextResponse.json({ error: "Locker is not occupied" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Locker is not occupied" }, 
+        { status: 404 }
+      );
     }
   } catch (e) {
     console.error(e);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal Server Error" }, 
+      { status: 500 }
+    );
   }
 }
