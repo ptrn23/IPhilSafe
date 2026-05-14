@@ -598,7 +598,7 @@ export default function Dashboard() {
       <Separator className="my-8" />
 
       {/* Logs */}
-      <div className="mt-8">
+      {session.role === 'Admin' && (<div className="mt-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-slate-900">Logs</h2>
           <Button
@@ -667,7 +667,7 @@ export default function Dashboard() {
             </Table>
           </ScrollArea>
         </Card>
-      </div>
+      </div>)}
 
       {/* --- Locker settings --- */}
       {session.role === 'Admin' && (
