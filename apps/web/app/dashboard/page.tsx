@@ -579,7 +579,7 @@ export default function Dashboard() {
                     </div>
                     {displayState === 'TAMPERED' && session.role === 'Admin' && (
                       <Button
-                        onClick={(e) => { e.stopPropagation(); simulateAdminOverride(String(locker.locker_id)); }}
+                        onClick={(e) => { e.stopPropagation(); revokeLockerAccess(locker.locker_id); }}
                         variant="destructive"
                         size="sm"
                         className="font-bold shadow-sm"
