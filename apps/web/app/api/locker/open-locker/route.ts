@@ -48,18 +48,30 @@ export async function POST(
     });
 
     // create log and return response based on verification result
-    if (isUserVerified){
-      console.log("authorized locker")
+    const l_state = await get_locker_state(locker);
+    if (l_state != "OCCUPIED" && l_state != "TAMPERED"){
+      return NextResponse.json({ error: "Locker is not occupied" }, { status: 404 });
+    }
+    if (l_state == "OCCUPIED"){
+      if (isUserVerified){
+      // console.log("authorized locker")
       create_audit_log(l_id, 'Locker_Opened', "Locker opened by user", uin )      
       return NextResponse.json({ message: "Authorized", name: user.name });
+      }
+      else {
+      }
     }
-    else if (await get_locker_state(locker) == "OCCUPIED"){
-      console.log("denied locker")
-      create_audit_log(l_id, 'Denied_Access', "Locker denied access to user", uin )      
-      return NextResponse.json({ message: "Denied", name: user.name });
-    }
-    else{
-      return NextResponse.json({ error: "Locker is not occupied" }, { status: 404 });
+    else if (l_state == "TAMPERED"){
+      if (user.userRole == "Admin"){
+        // console.log("authorized locker")
+        create_audit_log(l_id, 'Locker_Opened', "Locker opened by admin during tampered state", uin )      
+        return NextResponse.json({ message: "Authorized", name: user.name });
+      }
+      else{
+        // console.log("denied locker")
+        create_audit_log(l_id, 'Denied_Access', "Only admin access for locker during TAMPERED state", uin )      
+        return NextResponse.json({ message: "Denied", name: user.name });
+      }
     }
   } catch (e) {
     console.error(e);
