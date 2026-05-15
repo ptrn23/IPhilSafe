@@ -11,17 +11,17 @@ import { Separator } from '@/components/ui/separator';
 // ----------------------------------------------------------------
 // Add or remove dev users here — buttons are auto-generated
 // ----------------------------------------------------------------
-const DEV_USERS: { label: string; uin: string }[] = [
-  { label: "Cellin (4104961936)", uin: "4104961936" },
-  { label: "Paul (4960564187)", uin: "4960564187" },
-  // { label: "Name (UIN)", uin: "UIN" },
+const DEV_USERS: { label: string; name: string; uin: string; dob: string }[] = [
+  { label: "Cellin (4104961936)", name:"Cellin Louise Cheng", uin: "4104961936", dob: "2004/02/17" },
+  { label: "Paul (4960564187)", name:"Paul Timothy Necasio", uin: "4960564187", dob: "2005/02/23" },
+  // { label: "Name (UIN)", name: "Name", uin: "UIN", dob: "YYYY/MM/DD" },
 ];
 
-const buildDevQRPayload = (uin: string, label: string): string =>
+const buildDevQRPayload = (uin: string, name: string, dob: string): string =>
   JSON.stringify({
     uin,
-    name: label,
-    dob: "2000/01/01",
+    name: name,
+    dob: dob,
     file: "",
     address_line1: "",
     address_line2: "",
@@ -113,7 +113,7 @@ export default function LandingPage() {
                     variant="secondary"
                     className="w-full justify-start font-mono text-xs"
                     disabled={isLoading}
-                    onClick={() => handleInitialScan(buildDevQRPayload(user.uin, user.label))}
+                    onClick={() => handleInitialScan(buildDevQRPayload(user.uin, user.name, user.dob))}
                   >
                     {isLoading ? "Verifying..." : `→ ${user.label}`}
                   </Button>
