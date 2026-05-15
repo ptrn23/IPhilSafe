@@ -1,4 +1,6 @@
 import { prisma, Locker, sys_log_type } from "@repo/db";
+import https from "https";
+import fetch from "node-fetch";
 
 export async function get_locker_state(l: Locker | null){
   if (!l){
@@ -67,6 +69,7 @@ export async function create_audit_log(l_id: number, sys_type: sys_log_type, msg
     }
   });
 }
+
 // MOSIP QR Verification
 // Define the expected response structure from Python backend
 export interface VerifyResult {
@@ -77,34 +80,85 @@ export interface VerifyResult {
   message: string | null;
 }
 
-export async function verifyWithMOSIP(qrData: string): Promise<VerifyResult> {
-  if (!qrData) {
-    return { status: "error", led: "Red", uin: null, name: null, message: "No QR data provided" };
+// ----------------------------------------------------------------
+// MOSIP_BACKEND = "mock"   → cs145 mock server (yes-no auth)
+// MOSIP_BACKEND = "remote" → mosip-service.fly.dev (default)
+// MOSIP_BYPASS  = "true"   → skip all verification entirely (dev)
+// ----------------------------------------------------------------
+
+/**
+ * Calls the CS145 mock server at /api/v1/auth/yes-no.
+ * QR data is expected to be a JSON string with { UIN/uin, dob, name }.
+ */
+async function verifyWithMockServer(qrData: string): Promise<VerifyResult> {
+  console.log("🔍 MOSIP MOCK | Sending yes-no auth for UIN:", qrData);
+  const MOCK_URL = "https://cs145-iot-cup-1745973870.ap-southeast-1.elb.amazonaws.com";
+
+  let parsed: { uin?: string; UIN?: string; dob?: string; name?: string };
+  try {
+    parsed = JSON.parse(qrData);
+  } catch {
+    return { status: "error", led: "Red", uin: null, name: null, message: "Invalid JSON in QR data" };
   }
 
-  // ----------------------------------------------------------------
-  // DEV BYPASS — set MOSIP_BYPASS=true in .env.local to skip MOSIP
-  // ----------------------------------------------------------------
-  // if (process.env.MOSIP_BYPASS === "true") {  // enable when verification is working again
-  if (true) {
-    console.log("⚠️  MOSIP_BYPASS enabled — skipping real verification");
-    let parsed: { uin?: string; name?: string };
-    try {
-      parsed = JSON.parse(qrData);
-    } catch {
-      return { status: "error", led: "Red", uin: null, name: null, message: "Invalid JSON in bypass mode" };
+  const individual_id = parsed.UIN ?? parsed.uin ?? null;
+  const dob = parsed.dob ?? null;
+  const name = parsed.name ?? null;
+
+  if (!individual_id) {
+    return { status: "error", led: "Red", uin: null, name: null, message: "No UIN found in QR data" };
+  }
+
+  console.log("🔍 MOSIP MOCK | Sending yes-no auth for UIN:", individual_id);
+
+  try {
+
+    const response = await fetch(`${MOCK_URL}/api/v1/auth/yes-no`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      agent: new https.Agent({ rejectUnauthorized: false, checkServerIdentity: () => undefined }),
+      body: JSON.stringify({
+        individual_id,
+        consent: true,
+        ...(dob  && { dob }),
+        ...(name && { name }),
+      }),
+    } as any);
+
+    if (!response.ok) {
+      console.error(`MOSIP mock server error: ${response.status}`);
+      return { status: "error", led: "Red", uin: null, name: null, message: `Mock server HTTP error: ${response.status}` };
     }
-    return {
-      status: "verified",
-      led: "Blue",
-      uin: parsed.uin ?? null,
-      name: parsed.name ?? null,
-      message: null,
-    };
-  }
 
+    const data = (await response.json()) as any;
+    console.log("🔍 MOSIP MOCK | response:", data);
+
+    // The mock server returns errors as a non-null errors array
+    if (data.errors && data.errors.length > 0) {
+      const errMsg = data.errors.map((e: { errorMessage: string }) => e.errorMessage).join("; ");
+      console.warn("MOSIP mock rejected:", errMsg);
+      return { status: "rejected", led: "Red", uin: individual_id, name, message: errMsg };
+    }
+
+    if (data.response?.authStatus === true) {
+      return { status: "verified", led: "Blue", uin: individual_id, name, message: null };
+    }
+
+    return { status: "rejected", led: "Red", uin: individual_id, name, message: "Authentication failed" };
+
+  } catch (error) {
+    console.error("Failed to connect to MOSIP mock server:", error);
+    return { status: "error", led: "Red", uin: null, name: null, message: "Could not reach the MOSIP mock server" };
+  }
+}
+
+/**
+ * Calls the remote Python microservice at /api/verify.
+ * Passes raw QR data as-is.
+ */
+async function verifyWithRemoteServer(qrData: string): Promise<VerifyResult> {
   const PYTHON_BACKEND_URL = process.env.PYTHON_API_URL || "https://mosip-service.fly.dev";
-  console.log("🔍 MOSIP | qrData received:", qrData);
+  console.log("🔍 MOSIP REMOTE | qrData received:", qrData);
 
   try {
     const response = await fetch(`${PYTHON_BACKEND_URL}/api/verify`, {
@@ -119,13 +173,53 @@ export async function verifyWithMOSIP(qrData: string): Promise<VerifyResult> {
     }
 
     const data = await response.json();
-    console.log("🔍 MOSIP | response:", data);
+    console.log("🔍 MOSIP REMOTE | response:", data);
     return data as VerifyResult;
 
   } catch (error) {
     console.error("Failed to connect to the MOSIP backend:", error);
     return { status: "error", led: "Red", uin: null, name: null, message: "Could not reach the MOSIP microservice" };
   }
+}
+
+export async function verifyWithMOSIP(qrData: string): Promise<VerifyResult> {
+  if (!qrData) {
+    return { status: "error", led: "Red", uin: null, name: null, message: "No QR data provided" };
+  }
+
+  // ----------------------------------------------------------------
+  // DEV BYPASS — set MOSIP_BYPASS=true in .env.local to skip MOSIP
+  // ----------------------------------------------------------------
+  if (process.env.MOSIP_BYPASS === "true") {
+    console.log("⚠️  MOSIP_BYPASS enabled — skipping real verification");
+    let parsed: { uin?: string; UIN?: string; name?: string };
+    try {
+      parsed = JSON.parse(qrData);
+    } catch {
+      return { status: "error", led: "Red", uin: null, name: null, message: "Invalid JSON in bypass mode" };
+    }
+    return {
+      status: "verified",
+      led: "Blue",
+      uin: parsed.UIN ?? parsed.uin ?? null,
+      name: parsed.name ?? null,
+      message: null,
+    };
+  }
+
+  // ----------------------------------------------------------------
+  // MOSIP_BACKEND = "mock"   → CS145 mock server
+  // MOSIP_BACKEND = "remote" → mosip-service.fly.dev (default)
+  // ----------------------------------------------------------------
+  const backend = process.env.MOSIP_BACKEND ?? "remote";
+
+  if (backend === "mock") {
+    console.log("🔀 MOSIP routing to: MOCK SERVER");
+    return verifyWithMockServer(qrData);
+  }
+
+  console.log("🔀 MOSIP routing to: REMOTE SERVER");
+  return verifyWithRemoteServer(qrData);
 }
 
 export async function runMosipTest() {
@@ -140,7 +234,7 @@ export async function runMosipTest() {
   );
 
   try {
-    // 2. Send it to your Python backend utility
+    // 2. Send it to your backend (respects MOSIP_BACKEND env var)
     const result = await verifyWithMOSIP(mockQrPayload);
 
     // 3. Log the results
@@ -157,7 +251,7 @@ export async function runMosipTest() {
     } else if (result.status === "rejected") {
        console.log("⚠️ REJECTED: Connection worked, but MOSIP says the UIN/DOB is invalid.");
     } else {
-       console.log("❌ ERROR: The backend threw an exception (check Python terminal).");
+       console.log("❌ ERROR: The backend threw an exception (check server terminal).");
     }
 
     return result;
