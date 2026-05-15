@@ -19,11 +19,11 @@ export async function POST(
       return NextResponse.json({ error: `Value ${l_id} is not a valid number` }, { status: 400 });
     }
 
-    // // MOSIP verification
-    // const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data.subject));
-    // if (mosipResult.status !== "verified") {
-    //   return NextResponse.json({ error: `MOSIP verification failed: ${mosipResult.message || "Unknown error"}` }, { status: 401 });
-    // }
+    // MOSIP verification
+    const mosipResult = await verifyWithMOSIP(JSON.stringify(user_data));
+    if (mosipResult.status !== "verified") {
+      return NextResponse.json({ error: `MOSIP verification failed: ${mosipResult.message || "Unknown error"}` }, { status: 401 });
+    }
 
     const locker = await prisma.locker.findUnique({
       where: { lockerId: l_id }
