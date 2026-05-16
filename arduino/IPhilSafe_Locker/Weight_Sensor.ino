@@ -36,3 +36,14 @@ void updateWeight() {
   Serial.print(currentWeight);
   Serial.println(" g");
 }
+
+void tareWeight() {
+  Serial.println("[HX711] Taring to zero...");
+  LoadCell.tareNoDelay();
+  while (LoadCell.getTareStatus() == false) {
+    LoadCell.update(); // CRITICAL: This forces the library to process the tare math!
+    yield();           // Keeps ESP8266 WiFi alive
+  }
+  updateWeight();
+  Serial.println("[HX711] Weight Sensor Tared.");
+}

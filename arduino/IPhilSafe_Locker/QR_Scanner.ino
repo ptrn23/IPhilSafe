@@ -19,6 +19,7 @@ String checkScanner() {
         return ""; // ignore duplicate scan
       }
       if (!scannedData.startsWith("{") || !scannedData.endsWith("}")) {
+        flashColor("Red", 2, 300); // invalid qr color
         setColor(currentColor);
         return ""; // ignore non-JSON scans
       }

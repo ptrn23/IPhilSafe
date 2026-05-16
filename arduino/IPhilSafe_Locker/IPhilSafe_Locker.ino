@@ -7,7 +7,7 @@
 
 #define WIFI_SSID     "Putok ni Nayeon"
 #define WIFI_PASSWORD "jihyodorant"
-#define SERVER_URL    "https://iphilsafe.vercel.app" //  "http://172.20.10.4:3000"// 
+#define SERVER_URL    "https://iphilsafe.vercel.app"
 
 #define RED_PIN           25
 #define GREEN_PIN         26
@@ -34,20 +34,26 @@ int lastDoorState = -1;
 unsigned long lastDoorClosed = 0;
 
 unsigned long lastWeightCheck = 0;
-const unsigned long weightCheckInterval = 60000; // check weight every 60 seconds
+unsigned long weightCheckInterval = 30000; // check weight every 30 seconds
 
 String lastScannedCode = "";
 unsigned long lastScanTime = 0;
-const unsigned long duplicateTimeout = 3000;  // 3 seconds to ignore duplicate scans
+unsigned long duplicateTimeout = 3000;  // 3 seconds to ignore duplicate scans
 
 unsigned long lastStartRegisterTime = 0;
-const unsigned long registerModeTimeout = 30000; // 30 seconds to complete registration
+unsigned long registerModeTimeout = 60000; // 60 seconds to complete registration
 
 unsigned long lastUnregisterTime = 0;
-const unsigned long unregisterModeTimeout = 30000; // 30 seconds to complete unregistration
+unsigned long unregisterModeTimeout = 60000; // 60 seconds to complete unregistration
 
 unsigned long lastGetStatusTime = 0;
-const unsigned long getstatusInterval = 10000; // check status every 10 seconds
+unsigned long getstatusInterval = 10000; // check status every 10 seconds
+
+unsigned long lastGetSettingsTime = 0;
+const unsigned long getSettingsInterval = 300000; // get settings every 5 minutes
+
+unsigned long lastTareTime = 0;
+const unsigned long tareInterval = 60000; // tare every 1 minute when idle
 
 const char* ssid = WIFI_SSID;
 const char* password = WIFI_PASSWORD;
@@ -56,9 +62,28 @@ const char* serverURL = SERVER_URL;
 HardwareSerial scanner(2);
 HX711_ADC LoadCell(HX711_DT_PIN, HX711_SCK_PIN);
 
+volatile bool doorJustClosedFlag = false;
+void IRAM_ATTR doorISR() {
+  doorJustClosedFlag = true; 
+}
+
+volatile bool buttonPressedFlag = false;
+volatile unsigned long lastButtonInterruptTime = 0; 
+const unsigned long debounceDelay = 500; // 0.5s ignore window to prevent double-clicks
+void IRAM_ATTR buttonISR() {
+  unsigned long interruptTime = millis();
+  // Only trigger if 1000ms have passed since the last trigger
+  if (interruptTime - lastButtonInterruptTime > debounceDelay) {
+    buttonPressedFlag = true;
+    lastButtonInterruptTime = interruptTime;
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   scanner.begin(9600, SERIAL_8N1, SCANNER_RX, SCANNER_TX);
+
+  delay(1000);
 
   Serial.println("\n\n=======================================");
   Serial.println("   IPHILSAFE LOCKER TERMINAL STARTED   ");
@@ -72,25 +97,29 @@ void setup() {
   digitalWrite(LOCK_PIN, HIGH);
   pinMode(DOOR_SENSOR_PIN, INPUT_PULLUP);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
+  pinMode(DEBUG_LED_PIN, OUTPUT);
+
+  attachInterrupt(digitalPinToInterrupt(DOOR_SENSOR_PIN), doorISR, FALLING);
+  attachInterrupt(digitalPinToInterrupt(BUTTON_PIN), buttonISR, FALLING);
 
   delay(1000);
   
   setColor("White");
   setupWeightSensor();
   connectToWiFi();
-
-  Serial.println("[Locker] Locker setup complete.");
+  sendGetSettings();
   updateCurrentState();
+  Serial.println("[Locker] Locker setup complete.");
 }
 
 void updateCurrentState() {
-  currentState = sendGetStatus();
-  currentColor = statusToLED(currentState);
-  if (currentState != "UNREGISTER"){ // do not override color if in unregister mode since it's a temporary state
+   if (currentState != "UNREGISTER"){
+    currentState = sendGetStatus();
+    currentColor = statusToLED(currentState);
     setColor(currentColor);
+    lastGetStatusTime = millis();
+    Serial.println("[Locker] Current locker state: " + currentState);
   }
-  lastGetStatusTime = millis();
-  Serial.println("[Locker] Current locker state: " + currentState);
 }
 
 void openLocker() {
@@ -113,71 +142,105 @@ bool isDoorOpen() {
 
 void loop() {
   LoadCell.update();
-  if (millis() - lastGetStatusTime >= getstatusInterval) {
-    updateCurrentState();
+
+  bool currentDoorOpen = isDoorOpen();
+  if (isDoorOpen()){
+    digitalWrite(DEBUG_LED_PIN, HIGH);
+  } else {
+    digitalWrite(DEBUG_LED_PIN, LOW);
   }
 
-  if (lastDoorState == HIGH && !isDoorOpen() && millis() - lastDoorClosed > 300) { // door just closed
-      Serial.println("[Locker] Door closed. Updating weight and locker status.");
+  // door just closed
+  if (doorJustClosedFlag) {
+    doorJustClosedFlag = false;
+    delay(50); 
+    if (!isDoorOpen()) { 
+      Serial.println("[Locker] Door safely closed. Updating server...");
       updateWeight();
       sendClosedLocker();
       updateCurrentState();
+    }
+  }
+
+  // periodically get settings from server
+  if (millis() - lastGetSettingsTime >= getSettingsInterval) {
+    sendGetSettings();
   }
 
   if (currentState == "IDLE") {
+    // qr scanned, switch to register mode, try to add user
     String qr_scanned = checkScanner();
-    if (qr_scanned.length() > 0) { // new qr scanned, switch to register mode
+    if (qr_scanned.length() > 0) { 
       Serial.println("[Locker] QR code scanned for user registration. Switching to REGISTER mode.");
       sendStartRegister();
-      updateCurrentState(); // expected to switch to REGISTER
       sendQRAddUser(qr_scanned);
+      updateCurrentState(); // expected to switch to REGISTER
     }
 
-    if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, switch to register mode
+    // button pressed, switch to register mode
+    if (buttonPressedFlag) { 
+      buttonPressedFlag = false; // Reset the flag immediately
       Serial.println("[Locker] Register button pressed. Switching to REGISTER mode.");
       sendStartRegister();
       updateCurrentState();
-      while(digitalRead(BUTTON_PIN) == LOW) { delay(10); }
+    }
+
+    if (millis() - lastTareTime >= tareInterval) {
+      if (currentWeight > -30.0 && currentWeight < 20.0) {
+        Serial.println("[Locker] Performing 1-minute background tare...");
+        tareWeight();
+      } else {
+        Serial.println("[Locker] Tare skipped: Weight out of drift range.");
+      }
+
+      tareWeight();
+      lastTareTime = millis();
     }
   } 
   
   else if (currentState == "REGISTER") {
-    if (millis() - lastStartRegisterTime > registerModeTimeout) { // registration timeout, switch back to idle
+    // registration timeout, switch back to idle
+    if (millis() - lastStartRegisterTime > registerModeTimeout) {
       Serial.println("[Locker] Registration timeout. Switching back to IDLE mode.");
       sendFinishRegister();
       updateCurrentState();
     }
     
+    // qr scanned, try to add user
     String qr_scanned = checkScanner();
-    if (qr_scanned.length() > 0) { // new qr scanned, try to add user
+    if (qr_scanned.length() > 0) { 
       Serial.println("[Locker] QR code scanned for user registration.");
       sendQRAddUser(qr_scanned);
       updateCurrentState();
     }
 
-    if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, end register mode
+    // button pressed, end register mode
+    if (buttonPressedFlag) { 
+      buttonPressedFlag = false;
       Serial.println("[Locker] Register button pressed. Finishing registration.");
       sendFinishRegister();
       updateCurrentState();
-      while(digitalRead(BUTTON_PIN) == LOW) { delay(10); }
     }
   } 
   
   else if (currentState == "OCCUPIED") {
+    // qr scanned, try to open locker
     String qr_scanned = checkScanner();
-    if (qr_scanned.length() > 0) { // new qr scanned, try open locker
+    if (qr_scanned.length() > 0) { 
       Serial.println("[Locker] QR code scanned for locker access.");
       sendOpenLocker(qr_scanned);
       updateCurrentState();
     }
     
-    if (!isDoorOpen()) { // door is closed
-      if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, verify weight, unregister
+     // door is currently closed
+    if (!isDoorOpen()) {
+      // button pressed, switch to unregister mode
+      if (buttonPressedFlag) { 
+        buttonPressedFlag = false;
         Serial.println("[Locker] Unregister button pressed. Switching to UNREGISTER mode.");
         currentState = "UNREGISTER";
         setColor("Orange"); // unregister color
         lastUnregisterTime = millis();
-        while(digitalRead(BUTTON_PIN) == LOW) { delay(10); }
       }
 
       if (millis() - lastWeightCheck >= weightCheckInterval) {
@@ -188,32 +251,46 @@ void loop() {
   } 
   
   else if (currentState == "UNREGISTER") {
-    String qr_scanned = checkScanner();
-    if (qr_scanned.length() > 0) { // unregister with scanned qr
-      Serial.println("[Locker] QR code scanned for unregister.");
-      sendUnregister(qr_scanned);
-      updateCurrentState();
-    }
-
-    if (millis() - lastUnregisterTime > unregisterModeTimeout) { // unregister timeout, switch back to occupied
+    // unregister timeout, switch back to occupied
+    if (millis() - lastUnregisterTime > unregisterModeTimeout) { 
       Serial.println("[Locker] Unregister mode timeout. Switching back to OCCUPIED mode.");
       currentState = "OCCUPIED";
       setColor("Blue");
       updateCurrentState();
     }
     
-    if (digitalRead(BUTTON_PIN) == LOW) { // button pressed, undo unregister
+    // qr scanned, try to unregister locker
+    String qr_scanned = checkScanner();
+    if (qr_scanned.length() > 0) { 
+      Serial.println("[Locker] QR code scanned for unregister.");
+      sendUnregister(qr_scanned);
+      updateCurrentState();
+    }
+
+    // button pressed, undo unregister
+    if (buttonPressedFlag) {
+      buttonPressedFlag = false;
       Serial.println("[Locker] Unregister button pressed. Switching back to OCCUPIED mode.");
       currentState = "OCCUPIED";  
       setColor("Blue");
       updateCurrentState();
-      while(digitalRead(BUTTON_PIN) == LOW) { delay(10); }
     }
   } 
   
   else if (currentState == "TAMPERED") {
-    setColor("Red"); // forever red until reset
-  }
+    setColor("Red"); // forever red until reset or admin intervention
 
-  lastDoorState = digitalRead(DOOR_SENSOR_PIN);
+    // periodically check locker status from server
+    if (millis() - lastGetStatusTime >= getstatusInterval) {
+      updateCurrentState();
+    }
+
+    // qr scanned, only admin QR can reset tamper state
+    String qr_scanned = checkScanner();
+    if (qr_scanned.length() > 0) { 
+      Serial.println("[Locker] QR code scanned for admin access.");
+      sendOpenLocker(qr_scanned);
+      updateCurrentState();
+    }
+  }
 }

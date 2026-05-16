@@ -33,7 +33,7 @@ void flashColor(String color, int times, int delayTime) {
     setColor(color);
     delay(delayTime);
     setColor("Off");
-    delay(delayTime);
+    delay(50);
   }
 }
 
